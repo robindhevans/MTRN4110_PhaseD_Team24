@@ -183,6 +183,15 @@ int z5197018_MTRN4110_PhaseA() {
   // create the Robot instance.
   Robot *robot = new Robot();
   int timeStep = (int)robot->getBasicTimeStep();
+  //Keyboard Read
+  Keyboard keyboard;
+  keyboard.enable(10);
+  char key = 0;
+  while(robot->step(timeStep) != -1 && key != 'Q') {
+    key = keyboard.getKey();
+    if(key == 'W') cout << "UP" << endl;
+    
+  }
   int row = 0;
   int col = 0;
   int step_counter = 0;

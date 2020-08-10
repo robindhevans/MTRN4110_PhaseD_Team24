@@ -468,7 +468,7 @@ DEF MAZE Group {
 DEF z1234567 E-puck {
   translation -0.66 0 -0.33
   rotation 0 1 0 3.141592653589793
-  controller "z5197018_MTRN4110_PhaseA"
+  controller "PhaseD_Master"
   camera_width 320
   camera_height 240
   turretSlot [

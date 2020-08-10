@@ -64,7 +64,8 @@
 ### VERBOSE = 1
 ###
 ###-----------------------------------------------------------------------------
-
+INCLUDE = -I"C:/Users/u_da_/anaconda3/include"
+LIBRARIES = -L"C:/Users/u_da_/anaconda3/libs" -lpython37 -lpython3
 ### Do not modify: this includes Webots global Makefile.include
 space :=
 space +=

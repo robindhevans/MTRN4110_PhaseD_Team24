@@ -6,8 +6,6 @@
 
 #include <stdio.h>
 #include <windows.h>
-#include <webots/Robot.hpp>
-#include <webots/Keyboard.hpp>
 #include <z5197018_MTRN4110_PhaseB.cpp>
 #include <z5197018_MTRN4110_PhaseA.cpp>
 #include <iostream>

@@ -10,6 +10,11 @@
 #include <webots/DistanceSensor.hpp>
 #include <webots/PositionSensor.hpp>
 #include <webots/Motor.hpp>
+#include <webots/Keyboard.hpp>
+#include <webots/Camera.hpp>
+#include <webots/Display.hpp>
+
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -147,20 +152,20 @@ void update_cell(Heading my_heading, int& row, int& col) {
 void update_heading(Heading& my_heading,char c) {
   switch(my_heading) {
     case(North):
-      if(c == 'R') my_heading = East;
-      if(c == 'L') my_heading = West;
+      if(c == 'R'|| c == 'D') my_heading = East;
+      if(c == 'L'|| c == 'A') my_heading = West;
       break;
     case(South):
-      if(c == 'R') my_heading = West;
-      if(c == 'L') my_heading = East;
+      if(c == 'R'|| c == 'D') my_heading = West;
+      if(c == 'L'|| c == 'A') my_heading = East;
       break;
     case(East):
-      if(c == 'R') my_heading = South;
-      if(c == 'L') my_heading = North;
+      if(c == 'R'|| c == 'D') my_heading = South;
+      if(c == 'L'|| c == 'A') my_heading = North;
       break;
     case(West):
-      if(c == 'R') my_heading = North;
-      if(c == 'L') my_heading = South;
+      if(c == 'R'|| c == 'D') my_heading = North;
+      if(c == 'L'|| c == 'A') my_heading = South;
   }
   //cout << my_heading << endl;
 };
@@ -176,22 +181,35 @@ bool wall_detect(Robot* robot, DistanceSensor* ds, int timeStep) {
 };
 // front wall detection could use two front-facing distance sensors.
 // to correct any error in dead-reckoning using motor encoders later.
-  
-  
+void explore_maze(Robot* robot, PositionSensor* right_ps, PositionSensor* left_ps, Motor* right_motor, Motor* left_motor , int timeStep, Heading& my_heading, int row, int col) {
+  Keyboard keyboard;
+  keyboard.enable(30);
+  char key = 0;
+  while (robot->step(timeStep) != -1 && key != 'Q') {
+    key = keyboard.getKey();
+    switch(key) {
+      case('W'):
+        forward(robot, right_ps, left_ps, right_motor, left_motor , timeStep);
+        update_cell(my_heading, row, col);
+        cout << my_heading << row << col << endl;
+        break;
+      case('A'):
+        rotateCCW(robot, right_ps, left_ps, right_motor, left_motor , timeStep);
+        update_heading(my_heading, key);
+        cout << my_heading << row << col << endl;
+        break;
+      case('D'):
+        rotateCW(robot, right_ps, left_ps, right_motor, left_motor , timeStep);
+        update_heading(my_heading, keyw);
+        cout << my_heading << row << col << endl;
+    }
+  }
+}
 // Main control logic
 int z5197018_MTRN4110_PhaseA() {
   // create the Robot instance.
   Robot *robot = new Robot();
   int timeStep = (int)robot->getBasicTimeStep();
-  //Keyboard Read
-  Keyboard keyboard;
-  keyboard.enable(10);
-  char key = 0;
-  while(robot->step(timeStep) != -1 && key != 'Q') {
-    key = keyboard.getKey();
-    if(key == 'W') cout << "UP" << endl;
-    
-  }
   int row = 0;
   int col = 0;
   int step_counter = 0;
@@ -271,7 +289,12 @@ int z5197018_MTRN4110_PhaseA() {
   left_ps->enable(timeStep);
   Motor *right_motor = robot->getMotor("right wheel motor");
   Motor *left_motor = robot->getMotor("left wheel motor");
-
+  
+  Camera *camera = robot->getCamera("camera");
+  camera->enable(timeStep);
+  Display *overlay = robot->getDisplay("display");
+  overlay->setAlpha(0.0);
+  overlay->fillRectangle(0,0, overlay->getWidth(), overlay->getHeight());
   //determine initial surroundings:
   wall_left = wall_detect(robot, left_ds, timeStep);
   cout << " Left Wall: ";
@@ -285,7 +308,7 @@ int z5197018_MTRN4110_PhaseA() {
   cout << " Right Wall: ";
   wall_right == FALSE ? cout << "N" << endl : cout << "Y" << endl;
   //cout << wall_right;
-  
+  explore_maze(robot, right_ps, left_ps, right_motor, left_motor , timeStep, my_heading, row, col);
   //Read and follow commands from file
   while(path_plan.get(c)) {
     //cout << c << endl;

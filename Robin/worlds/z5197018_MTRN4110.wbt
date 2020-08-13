@@ -469,9 +469,13 @@ DEF z1234567 E-puck {
   translation -0.66 0 -0.33
   rotation 0 1 0 3.141592653589793
   controller "PhaseD_Master"
-  camera_width 320
-  camera_height 240
+  camera_width 1280
+  camera_height 720
   turretSlot [
+    Display {
+      width 1280
+      height 720
+    }
     DistanceSensor {
       translation 0.035 0 -0.01
       name "ds1"

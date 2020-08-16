@@ -20,7 +20,7 @@
 
 // definitions
 #define PATH_PLAN_FILE_NAME "../../PathPlan.txt"
-#define SPEED 6.28*0.4
+#define SPEED 6.28*0.3
 #define FORWARD_SPEED 6.28
 #define PI 3.14158
 #define POSITION_STEP_LINEAR 165.0/20.0
@@ -189,19 +189,19 @@ int main(int argc, char **argv) {
         right_pos = right_encoder_val;
         
         // print sensor information
-        /*
+        
         std::cout << "roll: " << imu_data[0]
         << " yaw: " << imu_data[1]
         << " pitch: " << imu_data[2] << std::endl;
         
-        std::cout << "dsF: " << dsF_vals << " ";
-        std::cout << "dsL: " << dsL_vals << " ";
-        std::cout << "dsR: " << dsR_vals << " ";
-        std::cout << "left encoder: " << left_encoder_val << " ";
-        std::cout << "right encoder: " << right_encoder_val << std::endl;
-        std::cout << "left pos: " << left_encoder_val << " ";
-        std::cout << "right pos: " << right_encoder_val << std::endl;
-        */
+        // std::cout << "dsF: " << dsF_vals << " ";
+        // std::cout << "dsL: " << dsL_vals << " ";
+        // std::cout << "dsR: " << dsR_vals << " ";
+        // std::cout << "left encoder: " << left_encoder_val << " ";
+        // std::cout << "right encoder: " << right_encoder_val << std::endl;
+        // std::cout << "left pos: " << left_encoder_val << " ";
+        // std::cout << "right pos: " << right_encoder_val << std::endl;
+        
         
         
         // Process sensor data here
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
                 left_state = true;
             }
             // gyroscopic angle the robot intends to turn to
-            //std::cout << "LHEADING: " << heading_ang << std::endl;
+            std::cout << "LHEADING: " << heading_ang << std::endl;
             // check if heading_ang is PI or -PI
             // on the edge cases of gyroscope
             if (heading_almost_equal_edge(heading_ang, PI)) {
@@ -294,7 +294,7 @@ int main(int argc, char **argv) {
                 right_state = true;
             }
             // gyroscopic angle the robot intends to turn to
-            //std::cout << "RHEADING: " << heading_ang << std::endl;
+            std::cout << "RHEADING: " << heading_ang << std::endl;
             // check if heading_ang is PI or -PI
             // on the edge cases of gyroscope
             if (heading_almost_equal_edge(heading_ang, PI)) {

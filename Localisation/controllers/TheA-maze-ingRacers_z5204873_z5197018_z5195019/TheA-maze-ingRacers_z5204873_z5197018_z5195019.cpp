@@ -151,13 +151,13 @@ int main(int argc, char **argv) {
   checkWalls(sensors, walls);
   draw_map(walls, display);
   
-  while (robot->step(TIME_STEP) != -1){
+  while (robot->step(TIME_STEP) != -1) {
   
     int key = keyboard->getKey();
     int step_taken = 0;
       
     //Start forward instruction
-    if (key == keyboard->UP){
+    if (key == keyboard->UP) {
       leftMotor->setVelocity(0.8 * MAX_SPEED);
       rightMotor->setVelocity(0.8 * MAX_SPEED);
         
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
       l_position += TILE_STEP;
       r_position += TILE_STEP;
       //read sesors to check position and walls  
-      while (l_position-TOLERANCE >= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos){
+      while (l_position-TOLERANCE >= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos) {
         robot->step(TIME_STEP);
         l_encoder_pos = left_en->getValue();
         r_encoder_pos = right_en->getValue();
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
         LeftDis = sensors.left_ds->getValue();
       }
       //adjust rows and cols value
-      switch (walls.heading_){
+      switch (walls.heading_) {
         case North: //NORTH
           walls.row -= 1;
           break;
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
     //End forward instruction
     
     //start left rotation instruction
-    else if (key == keyboard->LEFT){
+    else if (key == keyboard->LEFT) {
       leftMotor->setVelocity(0.4 * MAX_SPEED);
       rightMotor->setVelocity(0.4 * MAX_SPEED);
        
@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
       l_position -= ROTATE_STEP;
       r_position += ROTATE_STEP;
       //read sesors to check position and walls  
-      while (l_position+TOLERANCE <= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos){
+      while (l_position+TOLERANCE <= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos) {
         robot->step(TIME_STEP);
         l_encoder_pos = left_en->getValue();
         r_encoder_pos = right_en->getValue();
@@ -236,7 +236,7 @@ int main(int argc, char **argv) {
     //End left rotate instruction
     
     //start right rotate instruction
-    else if (key == keyboard->RIGHT){
+    else if (key == keyboard->RIGHT) {
       leftMotor->setVelocity(0.4 * MAX_SPEED);
       rightMotor->setVelocity(0.4 * MAX_SPEED);
        
@@ -271,9 +271,13 @@ int main(int argc, char **argv) {
           break;
       }
       step_taken = 1;
+    } else if (key == keyboard->END) {
+      // manual skip to end but robot should exit when the 
+      // entire maze has been explored under normal operation
+      break;
     }
     
-    if(step_taken == 1){
+    if (step_taken == 1){
       //print step information
       checkWalls(sensors, walls);
       draw_map(walls, display);
@@ -291,12 +295,11 @@ int main(int argc, char **argv) {
         }
         cout << endl;
       } 
-    cout << "coords: [" << walls.row<<","<< walls.col <<"] heading: "<< walls.heading_ <<endl;
+      cout << "coords: [" << walls.row<<","<< walls.col <<"] heading: "<< walls.heading_ <<endl;
     }
     
   }
-
-  cout << "Done - Path plan Executed" << endl;
+  
   
   cout << "The following executes assuming robot is in unknown ";
   cout << " location but heading is stored in KNOWN_HEADING variable" << endl;
@@ -328,7 +331,7 @@ int main(int argc, char **argv) {
   translate_NESW(my_heading, robot_walls, map_walls);
   //cout << map_walls.N << map_walls.E << map_walls.S << map_walls.W << endl;
   delete robot;
-
+  
   return 0;
 
 }
@@ -401,7 +404,7 @@ void draw_map(walldata walls, Display *display){
 
   //clear display
   display->setAlpha(0);
-  display->fillRectangle(0,0,500,300);\
+  display->fillRectangle(0,0,500,300);
   //set up outisde borders
   display->setAlpha(1);
  

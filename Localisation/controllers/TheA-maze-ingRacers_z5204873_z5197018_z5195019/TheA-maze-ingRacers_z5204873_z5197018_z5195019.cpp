@@ -1,4 +1,8 @@
-//z5195019 PhaseA Epuck Controller
+// TheA-maze-ingRacers Epuck controller
+// Based off of z5195019's Phase A Epuck Controller (Joshua Purnell)
+// with alterations and additions from:
+//             - Robin Evans (z5197018)
+//             - Dean So (z5204873)
 
 #include <webots/Robot.hpp>
 // Added a new include file
@@ -27,6 +31,7 @@
 #define DISP_HEIGHT 250
 #define MAP_COLS 9
 #define MAP_ROWS 5
+#define KNOWN_HEADING South
 
 // All the webots classes are defined in the "webots" namespace
 using namespace webots;
@@ -38,7 +43,7 @@ typedef struct walldata walldata;
 struct walldata {
   int hwalls[MAP_ROWS + 1][MAP_COLS];
   int vwalls[MAP_ROWS][MAP_COLS + 1];
-  heading my_heading;
+  heading heading_;
     //North=0 - East=1 - South=2 - West=3
   int row;
   int col;
@@ -63,12 +68,12 @@ struct walls_detected {
   //struct map_walls holds last wall directions in map reference frame.
 
 //For exploration
-void checkWalls (robotsensors sensors, walldata &walls);
-void draw_map (walldata walls, Display *displays);
+void checkWalls(robotsensors sensors, walldata &walls);
+void draw_map(walldata walls, Display *displays);
 //For localisation
-void translate_NESW(heading my_heading, walls_detected &robot_walls, walls_detected &map_walls)
-void check_walls_loc(robotsensors sensors, walls_detected &robot_walls);
-void floodfill(walldata &walls, int &floodfill_matrix);
+void translate_NESW(heading my_heading, walls_detected robot_walls, walls_detected map_walls);
+void check_walls_loc(robotsensors sensors, walls_detected (&robot_walls));
+void floodfill(walldata (&walls), int (&floodfill_matrix)[MAP_ROWS][MAP_COLS]);
 
 int main(int argc, char **argv) {
   walldata walls;
@@ -99,7 +104,7 @@ int main(int argc, char **argv) {
   //initialise robot position
   walls.row = 0;
   walls.col = 0;
-  walls.heading = South;
+  walls.heading_ = South;
   
   //initialise robot
   Robot *robot = new Robot();
@@ -172,7 +177,7 @@ int main(int argc, char **argv) {
         LeftDis = sensors.left_ds->getValue();
       }
       //adjust rows and cols value
-      switch (walls.heading){
+      switch (walls.heading_){
         case North: //NORTH
           walls.row -= 1;
           break;
@@ -212,18 +217,18 @@ int main(int argc, char **argv) {
 
       }
       //adjust heading
-      switch (walls.heading){
+      switch (walls.heading_){
         case (North):
-          walls.heading = West;
+          walls.heading_ = West;
           break;
         case (East):
-          walls.heading = North;
+          walls.heading_ = North;
           break;
         case (South):
-          walls.heading = East;
+          walls.heading_ = East;
           break;
         case (West):
-          walls.heading = South;
+          walls.heading_ = South;
           break;
       }
       step_taken = 1;
@@ -251,18 +256,18 @@ int main(int argc, char **argv) {
         LeftDis = sensors.left_ds->getValue();
       }
       //adjust heading
-      switch (walls.heading){
+      switch (walls.heading_){
         case North:
-          walls.heading = East;
+          walls.heading_ = East;
           break;
         case East:
-          walls.heading = South;
+          walls.heading_ = South;
           break;
         case South:
-          walls.heading = West;
+          walls.heading_ = West;
           break;
         case West:
-          walls.heading = North;
+          walls.heading_ = North;
           break;
       }
       step_taken = 1;
@@ -286,7 +291,7 @@ int main(int argc, char **argv) {
         }
         cout << endl;
       } 
-    cout << "coords: [" << walls.row<<","<<walls.col<<"] heading: "<<walls.heading <<endl;
+    cout << "coords: [" << walls.row<<","<< walls.col <<"] heading: "<< walls.heading_ <<endl;
     }
     
   }
@@ -305,13 +310,20 @@ int main(int argc, char **argv) {
     }
     //cout << endl;
   }
+  for (auto& e : walls.hwalls) {
+        for (auto& f : e) {
+            std::cout << f << " ";
+        }
+        std::cout << std::endl;
+    }
+  
   floodfill(walls, floodfill_matrix);
   //setup paths vector
   vector<vector<int>> paths;
   //setup heading
   heading my_heading = KNOWN_HEADING;
   //check surrounding walls
-  check_walls_loc(robotsensors sensors, robot_walls);
+  check_walls_loc(sensors, robot_walls);
   // translate to map heading
   translate_NESW(my_heading, robot_walls, map_walls);
   //cout << map_walls.N << map_walls.E << map_walls.S << map_walls.W << endl;
@@ -321,13 +333,13 @@ int main(int argc, char **argv) {
 
 }
 
-void checkWalls (robotsensors sensors, walldata &walls){  
+void checkWalls(robotsensors sensors, walldata &walls){  
 
   //cout << "sensors: F,R,B,L "<< sensors.front_ds->getValue()<< ' ';
   //cout << sensors.right_ds->getValue() << ' ';
   //cout << sensors.back_ds->getValue() << ' ';
   //cout << sensors.left_ds->getValue() << endl;
-  if (walls.heading == North){ //NORTH
+  if (walls.heading_ == North){ //NORTH
     if(sensors.front_ds->getValue() < 0.85){
       walls.hwalls[walls.row][walls.col] = 0;
     }
@@ -341,7 +353,7 @@ void checkWalls (robotsensors sensors, walldata &walls){
       walls.vwalls[walls.row][walls.col] = 0;
     }
   }   
-  if (walls.heading == East){ //EAST
+  if (walls.heading_ == East){ //EAST
     if(sensors.front_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col+1] = 0;
     }
@@ -355,7 +367,7 @@ void checkWalls (robotsensors sensors, walldata &walls){
       walls.hwalls[walls.row][walls.col] = 0; 
     }
   }   
-  if (walls.heading == South){ //SOUTH
+  if (walls.heading_ == South){ //SOUTH
     if(sensors.front_ds->getValue() < 0.85){
       walls.hwalls[walls.row+1][walls.col] = 0;
     }
@@ -369,7 +381,7 @@ void checkWalls (robotsensors sensors, walldata &walls){
       walls.vwalls[walls.row][walls.col+1] = 0;      
     }
   }
-  if (walls.heading == West){ //WEST    
+  if (walls.heading_ == West){ //WEST    
     if(sensors.front_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col] = 0;
     }
@@ -385,7 +397,7 @@ void checkWalls (robotsensors sensors, walldata &walls){
   } 
 }
 
-void draw_map (walldata walls, Display *display){
+void draw_map(walldata walls, Display *display){
 
   //clear display
   display->setAlpha(0);
@@ -420,7 +432,7 @@ void draw_map (walldata walls, Display *display){
   int rowpos = DISP_COR_OFFSET + (walls.row * DISP_CELL_STEP);
   int colpos = DISP_COR_OFFSET + (walls.col * DISP_CELL_STEP)+15;
   
-  switch (walls.heading){
+  switch (walls.heading_){
     case 0: //NORTH
       display->drawText("^", colpos, rowpos+18);
       break;
@@ -439,87 +451,87 @@ void draw_map (walldata walls, Display *display){
   display->drawRectangle(DISP_COR_OFFSET,DISP_COR_OFFSET,DISP_WIDTH+2,DISP_HEIGHT+2);
 }
 
-void translate_NESW(heading my_heading, walls_detected &robot_walls, walls_detected &map_walls) {
+void translate_NESW(heading my_heading, walls_detected robot_walls, walls_detected map_walls) {
   //translates wall locations from robot reference frame to map reference frame
   //use map_walls when determining location
   switch (my_heading) {
     case(North):
-      map_walls->N = robot_walls->N;
-      map_walls->E = robot_walls->E;
-      map_walls->S = robot_walls->S;
-      map_walls->W = robot_walls->W;
+      map_walls.N = robot_walls.N;
+      map_walls.E = robot_walls.E;
+      map_walls.S = robot_walls.S;
+      map_walls.W = robot_walls.W;
       break;
     case(East):
-      map_walls->N = robot_walls->W;
-      map_walls->E = robot_walls->N;
-      map_walls->S = robot_walls->E;
-      map_walls->W = robot_walls->S;
+      map_walls.N = robot_walls.W;
+      map_walls.E = robot_walls.N;
+      map_walls.S = robot_walls.E;
+      map_walls.W = robot_walls.S;
       break;
     case(South):
-      map_walls->N = robot_walls->S;
-      map_walls->E = robot_walls->W;
-      map_walls->S = robot_walls->N;
-      map_walls->W = robot_walls->E;
+      map_walls.N = robot_walls.S;
+      map_walls.E = robot_walls.W;
+      map_walls.S = robot_walls.N;
+      map_walls.W = robot_walls.E;
       break;
     case(West):
-      map_walls->N = robot_walls->E;
-      map_walls->E = robot_walls->S;
-      map_walls->S = robot_walls->W;
-      map_walls->W = robot_walls->N;
+      map_walls.N = robot_walls.E;
+      map_walls.E = robot_walls.S;
+      map_walls.S = robot_walls.W;
+      map_walls.W = robot_walls.N;
   }
 }
 
-void check_walls_loc(robotsensors sensors, walls_detected &robot_walls) {
+void check_walls_loc(robotsensors sensors, walls_detected (&robot_walls)) {
   if(sensors.front_ds->getValue() < 0.85) {
-      robot_walls->N = false;
+      robot_walls.N = false;
   }
   if(sensors.right_ds->getValue() < 0.85) {
-      robot_walls->E = false;
+      robot_walls.E = false;
   }
   if(sensors.back_ds->getValue() < 0.85) {
-      robot_walls->S = false;
+      robot_walls.S = false;
   }
   if(sensors.left_ds->getValue() < 0.85) {
-      robot_walls->W = false;
+      robot_walls.W = false;
   }
 }
 
-void floodfill(walldata &walls, int &floodfill_matrix) {
+void floodfill(walldata (&walls), int (&floodfill_matrix)[MAP_ROWS][MAP_COLS]) {
 //begin flood-fill algorithm
   int current_explored_val = 0;
   bool maze_val_changed = true;
   while(maze_val_changed == true) {
-    maze_val_changed = FALSE;
+    maze_val_changed = false;
     for(int i = 0; i < 5; i++) {
       for(int j = 0; j < 9; j++) {
         //check if current cell has curent value
         if (floodfill_matrix[i][j] == current_explored_val) {
           //check north for wall and unexplored
-          if (hwalls[i][j] == FALSE) {
+          if (walls.hwalls[i][j] == false) {
             if(floodfill_matrix[i-1][j] == 45) {
               floodfill_matrix[i-1][j] = current_explored_val + 1;
-              maze_val_changed = TRUE;
+              maze_val_changed = true;
             }
           }
           //check south for wall and unexplored
-          if (hwalls[i+1][j] == FALSE) {
+          if (walls.hwalls[i+1][j] == false) {
             if(floodfill_matrix[i+1][j] == 45) {
               floodfill_matrix[i+1][j] = current_explored_val + 1;
-              maze_val_changed = TRUE;
+              maze_val_changed = true;
             }
           }
           //check west for wall and unexplored
-          if (vwalls[i][j] == FALSE) {
+          if (walls.vwalls[i][j] == false) {
             if(floodfill_matrix[i][j-1] == 45) {
               floodfill_matrix[i][j-1] = current_explored_val + 1;
-              maze_val_changed = TRUE;
+              maze_val_changed = true;
             }
           }
           //check east for wall and unexplored
-          if (vwalls[i][j+1] == FALSE) {
+          if (walls.vwalls[i][j+1] == false) {
             if(floodfill_matrix[i][j+1] == 45) {
               floodfill_matrix[i][j+1] = current_explored_val + 1;
-              maze_val_changed = TRUE;
+              maze_val_changed = true;
             }
           }
         }

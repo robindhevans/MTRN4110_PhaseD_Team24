@@ -323,7 +323,7 @@ int main(int argc, char **argv) {
   // initialise goal as 0
 
   
-  // testing
+  // testing walls to skip exploration part
   int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
                                          {0, 1, 0, 0, 0, 0, 1, 0, 0},
                                          {1, 0, 0, 0, 1, 1, 0, 1, 0},
@@ -366,13 +366,7 @@ int main(int argc, char **argv) {
   //setup paths vector
   vector<vector<int>> paths;
   // possible intial locations matrix
-  int possible_locations[MAP_ROWS][MAP_COLS];
-  for (auto& e : possible_locations) {
-    for (auto& f : e) {
-        f = -1;
-    }
-    cout << endl;
-  }
+  vector<int> possible_locations {};
 
   //setup heading
   heading my_heading = KNOWN_HEADING;
@@ -390,7 +384,7 @@ int main(int argc, char **argv) {
     for (int c = 0; c < MAP_COLS; ++c) {
       if (floodfill_matrix[r][c] < 45) {
         if (compare_walls(walls, r, c, map_walls) == true) {
-          possible_locations[r][c] = get_id(r, c);
+          possible_locations.push_back(get_id(r, c));
           vector<int> temp_path;
           get_short_path_from_id(floodfill_matrix, get_id(r, c), get_id(GOAL_ROW, GOAL_COL), temp_path, walls);
           paths.push_back(temp_path);
@@ -398,12 +392,11 @@ int main(int argc, char **argv) {
       }
     }
   }
+  cout << "potential cells ";
   for (auto& e : possible_locations) {
-    for (auto& f : e) {
-        cout << f << " ";
-    }
-    cout << endl;
+    cout << e << " ";
   }
+  cout << endl;
 
 
   for (auto& e : paths) {
@@ -600,8 +593,8 @@ void floodfill(walldata (&walls), int (&floodfill_matrix)[MAP_ROWS][MAP_COLS]) {
             if (dir_check == North && r != 0 && walls.hwalls[r][c] == 0) {
               // if searching north but at top row dont need to update anything
               if (floodfill_matrix[r-1][c] == N) {
-              floodfill_matrix[r-1][c] = floodfill_matrix[r][c] + 1;
-              maze_value_changed = true;
+                floodfill_matrix[r-1][c] = floodfill_matrix[r][c] + 1;
+                maze_value_changed = true;
               }
 
             } else if (dir_check == East && c != MAP_COLS - 1 && walls.vwalls[r][c+1] == 0) {

@@ -71,9 +71,11 @@ struct walls_detected {
 void checkWalls(robotsensors sensors, walldata &walls);
 void draw_map(walldata walls, Display *displays);
 //For localisation
-void translate_NESW(heading my_heading, walls_detected robot_walls, walls_detected map_walls);
+void translate_NESW(heading my_heading, walls_detected (&robot_walls), walls_detected (&map_walls));
 void check_walls_loc(robotsensors sensors, walls_detected (&robot_walls));
 void floodfill(walldata (&walls), int (&floodfill_matrix)[MAP_ROWS][MAP_COLS]);
+int get_rc(int id, char setting);
+int get_id(int r, int c);
 
 int main(int argc, char **argv) {
   walldata walls;
@@ -326,10 +328,14 @@ int main(int argc, char **argv) {
   //setup heading
   heading my_heading = KNOWN_HEADING;
   //check surrounding walls
-  check_walls_loc(sensors, robot_walls);
-  // translate to map heading
+  robot->step(TIME_STEP);
+  check_walls_loc(sensors, robot_walls); // robot_walls has current robot sensor data
+  // translate to robot_walls to reference frame of map in terms of NSEW directions
+  // - have to do this each time walls are checked to transform the frame to an object frame
   translate_NESW(my_heading, robot_walls, map_walls);
-  //cout << map_walls.N << map_walls.E << map_walls.S << map_walls.W << endl;
+  cout << map_walls.N << map_walls.E << map_walls.S << map_walls.W << endl;
+  
+  // 
   delete robot;
   
   return 0;
@@ -454,7 +460,7 @@ void draw_map(walldata walls, Display *display){
   display->drawRectangle(DISP_COR_OFFSET,DISP_COR_OFFSET,DISP_WIDTH+2,DISP_HEIGHT+2);
 }
 
-void translate_NESW(heading my_heading, walls_detected robot_walls, walls_detected map_walls) {
+void translate_NESW(heading my_heading, walls_detected (&robot_walls), walls_detected (&map_walls)) {
   //translates wall locations from robot reference frame to map reference frame
   //use map_walls when determining location
   switch (my_heading) {
@@ -544,3 +550,17 @@ void floodfill(walldata (&walls), int (&floodfill_matrix)[MAP_ROWS][MAP_COLS]) {
   current_explored_val++;
   }
  }
+ 
+ int get_rc(int id, char setting) {
+    int val = 0;
+    if (setting == 'r') {
+        val = id / 9;
+    } else if (setting == 'c') {
+        val = id % 9;
+    }
+    return val;
+}
+
+int get_id(int r, int c) {
+    return (r * 9) + c;
+}

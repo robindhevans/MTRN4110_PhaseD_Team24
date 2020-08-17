@@ -31,6 +31,8 @@
 #define DISP_HEIGHT 250
 #define MAP_COLS 9
 #define MAP_ROWS 5
+#define GOAL_ROW MAP_ROWS/2
+#define GOAL_COL MAP_COLS/2
 #define KNOWN_HEADING South
 
 // All the webots classes are defined in the "webots" namespace
@@ -76,6 +78,9 @@ void check_walls_loc(robotsensors sensors, walls_detected (&robot_walls));
 void floodfill(walldata (&walls), int (&floodfill_matrix)[MAP_ROWS][MAP_COLS]);
 int get_rc(int id, char setting);
 int get_id(int r, int c);
+void advance_direction(heading (&direction));
+bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls);
+void get_short_path_from_id(int (&floodfill_matrix)[MAP_ROWS][MAP_COLS], int start_id, int goal_id, vector<int> (&temp_path), walldata (&walls));
 
 int main(int argc, char **argv) {
   walldata walls;
@@ -302,8 +307,8 @@ int main(int argc, char **argv) {
     
   }
   
-  
-  cout << "The following executes assuming robot is in unknown ";
+  // ----------------------------- LOCALISATION ----------------------------- //
+  cout << "The following executes assuming robot is in unknown";
   cout << " location but heading is stored in KNOWN_HEADING variable" << endl;
   // define food-fill matrix
   int floodfill_matrix[MAP_ROWS][MAP_COLS];
@@ -315,16 +320,60 @@ int main(int argc, char **argv) {
     }
     //cout << endl;
   }
-  for (auto& e : walls.hwalls) {
-        for (auto& f : e) {
-            std::cout << f << " ";
-        }
-        std::cout << std::endl;
+  // initialise goal as 0
+
+  
+  // testing
+  int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
+                                         {0, 1, 0, 0, 0, 0, 1, 0, 0},
+                                         {1, 0, 0, 0, 1, 1, 0, 1, 0},
+                                         {0, 0, 1, 0, 1, 1, 1, 0, 0},
+                                         {0, 0, 1, 0, 0, 1, 0, 1, 0},
+                                         {1, 1, 1, 1, 1, 1, 1, 1, 1}};
+  int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 
+                                         {1, 0, 0, 1, 0, 0, 1, 1, 0, 1},
+                                         {1, 0, 1, 1, 1, 0, 0, 0, 0, 1},
+                                         {1, 1, 0, 0, 0, 0, 1, 0, 0, 1},
+                                         {1, 1, 0, 0, 1, 0, 0, 1, 0, 1}};
+  
+  for (int i = 0; i < MAP_ROWS+1; ++i) {
+    for (int j = 0; j < MAP_COLS; ++j) {
+      walls.hwalls[i][j] = temphwall[i][j];
     }
+  }
+  for (int i = 0; i < MAP_ROWS; ++i) {
+    for (int j = 0; j < MAP_COLS+1; ++j) {
+      walls.vwalls[i][j] = tempvwall[i][j];
+    }
+  }
+  
+  floodfill_matrix[GOAL_ROW][GOAL_COL] = 0;
+  for (auto& e : walls.hwalls) {
+    for (auto& f : e) {
+        std::cout << f << " ";
+    }
+    cout << endl;
+  }
   
   floodfill(walls, floodfill_matrix);
+  for (auto& e : floodfill_matrix) {
+    for (auto& f : e) {
+        if (f < 10) cout << '0';
+        std::cout << f << " ";
+    }
+    cout << endl;
+  }
   //setup paths vector
   vector<vector<int>> paths;
+  // possible intial locations matrix
+  int possible_locations[MAP_ROWS][MAP_COLS];
+  for (auto& e : possible_locations) {
+    for (auto& f : e) {
+        f = -1;
+    }
+    cout << endl;
+  }
+
   //setup heading
   heading my_heading = KNOWN_HEADING;
   //check surrounding walls
@@ -335,7 +384,35 @@ int main(int argc, char **argv) {
   translate_NESW(my_heading, robot_walls, map_walls);
   cout << map_walls.N << map_walls.E << map_walls.S << map_walls.W << endl;
   
-  // 
+  // search flood fill for possible starting floodfill_matrix
+  // currently pushing the possible short paths into paths vector
+  for (int r = 0; r < MAP_ROWS; ++r) {
+    for (int c = 0; c < MAP_COLS; ++c) {
+      if (floodfill_matrix[r][c] < 45) {
+        if (compare_walls(walls, r, c, map_walls) == true) {
+          possible_locations[r][c] = get_id(r, c);
+          vector<int> temp_path;
+          get_short_path_from_id(floodfill_matrix, get_id(r, c), get_id(GOAL_ROW, GOAL_COL), temp_path, walls);
+          paths.push_back(temp_path);
+        }
+      }
+    }
+  }
+  for (auto& e : possible_locations) {
+    for (auto& f : e) {
+        cout << f << " ";
+    }
+    cout << endl;
+  }
+
+
+  for (auto& e : paths) {
+    cout << "[";
+    for (auto& f : e) {
+        std::cout << f << " ";
+    }
+    cout << "]" << endl;
+  }
   delete robot;
   
   return 0;
@@ -506,61 +583,158 @@ void check_walls_loc(robotsensors sensors, walls_detected (&robot_walls)) {
 }
 
 void floodfill(walldata (&walls), int (&floodfill_matrix)[MAP_ROWS][MAP_COLS]) {
-//begin flood-fill algorithm
-  int current_explored_val = 0;
-  bool maze_val_changed = true;
-  while(maze_val_changed == true) {
-    maze_val_changed = false;
-    for(int i = 0; i < 5; i++) {
-      for(int j = 0; j < 9; j++) {
-        //check if current cell has curent value
-        if (floodfill_matrix[i][j] == current_explored_val) {
-          //check north for wall and unexplored
-          if (walls.hwalls[i][j] == false) {
-            if(floodfill_matrix[i-1][j] == 45) {
-              floodfill_matrix[i-1][j] = current_explored_val + 1;
-              maze_val_changed = true;
+  // flood fill algorithm
+  int cur_explored_cell = 0;
+  bool maze_value_changed = true;
+  heading dir_check = North;
+  int N = 45;
+  // flood fill loop
+  while (maze_value_changed != false) {
+    maze_value_changed = false;
+    for (int r = 0; r < MAP_ROWS; ++r) {
+      for (int c = 0; c < MAP_COLS; ++c) {
+        if (floodfill_matrix[r][c] == cur_explored_cell) {
+          dir_check = North;
+          //dir_mod = 0;
+          for (int d = 0; d < 4; ++d) {
+            if (dir_check == North && r != 0 && walls.hwalls[r][c] == 0) {
+              // if searching north but at top row dont need to update anything
+              if (floodfill_matrix[r-1][c] == N) {
+              floodfill_matrix[r-1][c] = floodfill_matrix[r][c] + 1;
+              maze_value_changed = true;
+              }
+
+            } else if (dir_check == East && c != MAP_COLS - 1 && walls.vwalls[r][c+1] == 0) {
+              // if searching east but at right most col dont need to update anything
+              if (floodfill_matrix[r][c+1] == N) {
+                floodfill_matrix[r][c+1] = floodfill_matrix[r][c] + 1;
+                maze_value_changed = true;
+              }
+            } else if (dir_check == South && r != MAP_ROWS - 1 && walls.hwalls[r+1][c] == 0) {
+              // if searching south but at bottom row dont need to update anything
+              if (floodfill_matrix[r+1][c] == N) {
+                floodfill_matrix[r+1][c] = floodfill_matrix[r][c] + 1;
+                maze_value_changed = true;
+              }
+            } else if (dir_check == West && c != 0 && walls.vwalls[r][c] == 0) {
+              // if searching west but at left most col dont need to update anything
+              if (floodfill_matrix[r][c-1] == N) {
+                floodfill_matrix[r][c-1] = floodfill_matrix[r][c] + 1;
+                maze_value_changed = true;
+              }
             }
-          }
-          //check south for wall and unexplored
-          if (walls.hwalls[i+1][j] == false) {
-            if(floodfill_matrix[i+1][j] == 45) {
-              floodfill_matrix[i+1][j] = current_explored_val + 1;
-              maze_val_changed = true;
-            }
-          }
-          //check west for wall and unexplored
-          if (walls.vwalls[i][j] == false) {
-            if(floodfill_matrix[i][j-1] == 45) {
-              floodfill_matrix[i][j-1] = current_explored_val + 1;
-              maze_val_changed = true;
-            }
-          }
-          //check east for wall and unexplored
-          if (walls.vwalls[i][j+1] == false) {
-            if(floodfill_matrix[i][j+1] == 45) {
-              floodfill_matrix[i][j+1] = current_explored_val + 1;
-              maze_val_changed = true;
-            }
+            advance_direction(dir_check);
           }
         }
       }
     }
-  //increment explored value (for use later or remove if not needed)
-  current_explored_val++;
-  }
- }
+      ++cur_explored_cell;
+  } 
+}
  
- int get_rc(int id, char setting) {
-    int val = 0;
-    if (setting == 'r') {
-        val = id / 9;
-    } else if (setting == 'c') {
-        val = id % 9;
-    }
-    return val;
+int get_rc(int id, char setting) {
+  int val = 0;
+  if (setting == 'r') {
+    val = id / 9;
+  } else if (setting == 'c') {
+    val = id % 9;
+  }
+  return val;
 }
 
 int get_id(int r, int c) {
-    return (r * 9) + c;
+  return (r * 9) + c;
+}
+
+void advance_direction(heading (&direction)) {
+  switch (direction) {
+    case North:
+      direction = East;
+      break;
+    case East:
+      direction = South;
+      break;
+    case South:
+      direction = West;
+      break;
+    case West:
+      direction = North;
+      break;
+  }
+}
+
+bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls) {
+  // for each direction check if that wall matches with the map_walls 
+  // if at least one of the walls dont match, then we know its not an potential starting position
+  bool wall_check = true;
+  heading dir_check = North;
+  for (int d = 0; d < 4; ++d) {
+    if (dir_check == North) {
+      if (walls.hwalls[row][col] != map_walls.N) {
+        wall_check = false;
+      }
+    } else if (dir_check == East) {
+      if (walls.vwalls[row][col+1] != map_walls.E) {
+        wall_check = false;
+      }
+    } else if (dir_check == South) {
+      if (walls.hwalls[row+1][col] != map_walls.S) {
+        wall_check = false;
+      }
+    } else if (dir_check == West) {
+        if (walls.vwalls[row][col] != map_walls.W) {
+        wall_check = false;
+      }
+    }
+    advance_direction(dir_check);
+  }
+  return wall_check;
+}
+
+void get_short_path_from_id(int (&floodfill_matrix)[MAP_ROWS][MAP_COLS], int start_id, int goal_id, vector<int> (&temp_path), walldata (&walls)) {
+  // grab the shortest path from a start id to goal id
+  int cur_id = start_id;
+  heading cur_heading = KNOWN_HEADING;
+  int cur_flood = 0;
+  heading dir_check = North;
+  while (cur_id != goal_id) {
+    int r = get_rc(cur_id, 'r');
+    int c = get_rc(cur_id, 'c');
+    // make the first check in the direction of the robot to optimise turns
+    // essentially, robot goes straight when it can since the first direction
+    // checked is the previous heading of the robot...
+    dir_check = cur_heading;
+    cur_flood = floodfill_matrix[r][c];
+    // dont need to check if the value is < 45 since we check for a wall
+    // if theres a wall its not checked already...
+    for (int d = 0; d < 4; ++d) {
+      // checks performed for each direction:
+      //        - edge cases for r and c
+      //        - no wall in that direction
+      //        - next cell in that direction is 1 less than previous cell
+      
+      if (dir_check == North && r != 0 && walls.hwalls[r][c] == 0 && floodfill_matrix[r-1][c] == cur_flood-1) {
+        cur_id = get_id(r-1, c);
+        cur_flood = floodfill_matrix[r-1][c];
+        cur_heading = North;
+        temp_path.push_back(cur_id);
+      } else if (dir_check == East && c != MAP_COLS - 1 && walls.vwalls[r][c+1] == 0 && floodfill_matrix[r][c+1] == cur_flood-1) {
+        cur_id = get_id(r, c+1);
+        cur_flood = floodfill_matrix[r][c+1];
+        cur_heading = East;
+        temp_path.push_back(cur_id);
+      } else if (dir_check == South && r != MAP_ROWS - 1 && walls.hwalls[r+1][c] == 0 && floodfill_matrix[r+1][c] == cur_flood-1) {
+        cur_id = get_id(r+1, c);
+        cur_flood = floodfill_matrix[r+1][c];
+        cur_heading = South;
+        temp_path.push_back(cur_id);
+      } else if (dir_check == West && c != 0 && walls.vwalls[r][c] == 0 && floodfill_matrix[r][c-1] == cur_flood-1) {
+        cur_id = get_id(r, c-1);
+        cur_flood = floodfill_matrix[r][c-1];
+        cur_heading = West;
+        temp_path.push_back(cur_id);
+      }
+      advance_direction(dir_check);
+    }
+  }
 }

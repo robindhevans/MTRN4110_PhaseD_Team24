@@ -366,7 +366,7 @@ int main(int argc, char **argv) {
   //setup paths vector
   vector<vector<int>> paths;
   // possible intial locations matrix
-  vector<int> possible_locations {};
+  vector<int> potential_cells {};
 
   //setup heading
   heading my_heading = KNOWN_HEADING;
@@ -384,7 +384,7 @@ int main(int argc, char **argv) {
     for (int c = 0; c < MAP_COLS; ++c) {
       if (floodfill_matrix[r][c] < 45) {
         if (compare_walls(walls, r, c, map_walls) == true) {
-          possible_locations.push_back(get_id(r, c));
+          potential_cells.push_back(get_id(r, c));
           vector<int> temp_path;
           get_short_path_from_id(floodfill_matrix, get_id(r, c), get_id(GOAL_ROW, GOAL_COL), temp_path, walls);
           paths.push_back(temp_path);
@@ -393,7 +393,7 @@ int main(int argc, char **argv) {
     }
   }
   cout << "potential cells ";
-  for (auto& e : possible_locations) {
+  for (auto& e : potential_cells) {
     cout << e << " ";
   }
   cout << endl;

@@ -397,8 +397,6 @@ int main(int argc, char **argv) {
     cout << e << " ";
   }
   cout << endl;
-
-
   for (auto& e : paths) {
     cout << "[";
     for (auto& f : e) {
@@ -406,6 +404,26 @@ int main(int argc, char **argv) {
     }
     cout << "]" << endl;
   }
+  /*
+  vector<int> cur_cells {};
+  vector<int> prev_cells {};
+  int goal_id = get_id(GOAL_ROW, GOAL_COL));
+  int from_goal = goal_id;
+  copy(potential_cells.begin(), potential_cells.end(), back_inserter prev_cells));
+  // localisation algorithm
+  while (true) {
+    if  prev_cells.size() > 1) {
+      if (find prev_cells.begin(), prev_cells.end(), goal_id) != prev_cells.end()) {
+        // must store the last goal connected cell in from_goal
+      } else {
+        // goal is not a potential cell
+
+      }
+    } else {
+      break;
+    }
+  }
+  */
   delete robot;
   
   return 0;

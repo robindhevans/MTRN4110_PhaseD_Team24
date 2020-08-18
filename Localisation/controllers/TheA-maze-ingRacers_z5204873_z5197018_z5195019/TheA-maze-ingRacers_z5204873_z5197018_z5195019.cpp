@@ -25,7 +25,7 @@
 #define TILE_STEP 8.25
 //tile width divided by radius
 #define TOLERANCE 0.005
-#define PATH_PLAN_FILE_NAME "../../PathPlan.txt"
+#define get_path_instruct_FILE_NAME "../../PathPlan.txt"
 #define DISP_COR_OFFSET 25
 #define DISP_CELL_STEP 50
 #define DISP_WIDTH 450
@@ -73,6 +73,7 @@ struct walls_detected {
 //For exploration
 void checkWalls(robotsensors sensors, walldata &walls);
 void draw_map(walldata walls, Display *displays);
+
 //For localisation
 void translate_NESW(heading my_heading, walls_detected (&robot_walls), walls_detected (&map_walls));
 void check_walls_loc(robotsensors sensors, walls_detected (&robot_walls));
@@ -82,10 +83,15 @@ int get_id(int r, int c);
 void advance_direction(heading (&direction));
 bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls);
 void get_short_path_from_id(int (&floodfill_matrix)[MAP_ROWS][MAP_COLS], int start_id, int goal_id, vector<int> (&temp_path), walldata (&walls));
-string path_plan(int start_id, int goal_id, heading init_heading, vector<int> path, int hWall[MAP_ROWS+1][MAP_COLS], int vWall[MAP_ROWS][MAP_COLS+1]);
+string get_path_instruct(int start_id, int goal_id, heading init_heading, vector<int> path, int hWall[MAP_ROWS+1][MAP_COLS], int vWall[MAP_ROWS][MAP_COLS+1]);
 int dir_num(heading direction);
 int dir_dif(heading a, heading b);
 heading dir_trans(heading dir_num, int dir_dif);
+void robot_follow_steps(string instruct, Robot* robot, robotsensors (&sensors), 
+                        walldata (&walls), Motor* leftMotor, Motor* rightMotor, 
+                        PositionSensor *left_en, PositionSensor *right_en, 
+                        double l_position, double r_position, 
+                        double l_encoder_pos, double r_encoder_pos);
 
 int main(int argc, char **argv) {
   walldata walls;
@@ -412,12 +418,13 @@ int main(int argc, char **argv) {
     }
   }
   //generate path from start closest to goal
+  // NOTE: get_short_path_from_id DOES NOT GET PATH WITH LEAST TURNS
   get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls);
 
   for (auto& e : paths) {
     cout << "[";
     for (auto& f : e) {
-        std::cout << f << " ";
+        std::cout << f;
     }
     cout << "]" << endl;
   }
@@ -426,28 +433,58 @@ int main(int argc, char **argv) {
   }
   cout << endl;
   //generate instructions
-  string robot_instruct = path_plan(current_path_id, get_id(GOAL_ROW,GOAL_COL), my_heading, current_path, walls.hwalls, walls.vwalls);
+  cout << current_path_id << endl;
+  string robot_instruct = get_path_instruct(current_path_id, get_id(GOAL_ROW,GOAL_COL), my_heading, current_path, walls.hwalls, walls.vwalls);
   cout << robot_instruct << endl;
+  // robot_follow_steps(robot_instruct, robot, sensors, walls, leftMotor,
+  //                    rightMotor, left_en, right_en, l_position, r_position, 
+  //                    l_encoder_pos, r_encoder_pos);
   /*
-  vector<int> cur_cells {};
-  vector<int> prev_cells {};
-  int goal_id = get_id(GOAL_ROW, GOAL_COL));
-  int from_goal = goal_id;
-  copy(potential_cells.begin(), potential_cells.end(), back_inserter prev_cells));
-  // localisation algorithm
+  vector<int> cur_path                current_path
+  Vector<vector<int>> path            path
+  Path: get potential cells id           
+  Cur_path : Generate new shortest path from end of a non goal starting path and follow 
+  while (true): 
+    if  number of vectors in path vector > 1 
+      take cur_path next valid step (update heading here, maybe make a function that moves the robot as needed in a certain direction regardless of heading?) 
+      Add the relative position change from the “next valid step” to each position in path 
+      Compare map_walls with walls in each relatively changed position in path (check the last position pushed onto each path vector) 
+      Remove paths from path vector that don’t match the wall comparison test 
+      If at end of cur_path and number of vectors in path vector > 1 
+        Cur_path: generate new shortest path from end of a non goal ending path to goal 
+    else break 
+  */
+  vector<int>::iterator next_step = current_path.begin();
   while (true) {
-    if  prev_cells.size() > 1) {
-      if (find prev_cells.begin(), prev_cells.end(), goal_id) != prev_cells.end()) {
-        // must store the last goal connected cell in from_goal
-      } else {
-        // goal is not a potential cell
+    if (paths.size() > 1) {
+      string next_instruct = get_path_instruct(current_path_id, *next_step, my_heading, current_path, walls.hwalls, walls.vwalls);
+      robot_follow_steps(next_instruct, robot, sensors, walls, leftMotor,
+                         rightMotor, left_en, right_en, l_position, r_position, 
+                         l_encoder_pos, r_encoder_pos);
+      // relative position change??
+      for (auto& e : paths) {
+        *(e.end()) += abs(current_path_id - *next_step);
+      }
+      // print paths after adding relative position change
+      for (auto& e : paths) {
+        cout << "[";
+        for (auto& f : e) {
+            std::cout << f;
+        }
+        cout << "]" << endl;
+      }
+      // update map_walls
+      check_walls_loc(sensors, robot_walls);
+      translate_NESW(my_heading, robot_walls, map_walls);
+      for (auto& e : paths) {
+        // path in e
 
       }
     } else {
       break;
     }
   }
- */
+  
   delete robot;
   
   return 0;
@@ -518,7 +555,7 @@ void checkWalls(robotsensors sensors, walldata &walls){
   } 
 }
 
-void draw_map(walldata walls, Display *display){
+void draw_map(walldata walls, Display *display) {
 
   //clear display
   display->setAlpha(0);
@@ -526,7 +563,6 @@ void draw_map(walldata walls, Display *display){
   //set up outisde borders
   display->setAlpha(1);
  
-
 //insert walls
   display->setColor(0xba25b0);
   //draw horizontal walls
@@ -570,7 +606,8 @@ void draw_map(walldata walls, Display *display){
   
   display->setColor(0x1f9e1f);
   display->drawRectangle(DISP_COR_OFFSET,DISP_COR_OFFSET,DISP_WIDTH+2,DISP_HEIGHT+2);
-}
+  }
+
 
 void translate_NESW(heading my_heading, walls_detected (&robot_walls), walls_detected (&map_walls)) {
   //translates wall locations from robot reference frame to map reference frame
@@ -779,7 +816,7 @@ void get_short_path_from_id(int (&floodfill_matrix)[MAP_ROWS][MAP_COLS], int sta
   }
 }
 
-string path_plan(int start_id, int goal_id, heading init_heading, vector<int> path, int hWall[MAP_ROWS+1][MAP_COLS], int vWall[MAP_ROWS][MAP_COLS+1]) {
+string get_path_instruct(int start_id, int goal_id, heading init_heading, vector<int> path, int hWall[MAP_ROWS+1][MAP_COLS], int vWall[MAP_ROWS][MAP_COLS+1]) {
     // given a set of the ids of a path and robot's initial heading
     // determine the amount of turns required and generate turns
     int cur_id = start_id;
@@ -791,15 +828,16 @@ string path_plan(int start_id, int goal_id, heading init_heading, vector<int> pa
         int r = get_rc(cur_id, 'r');
         int c = get_rc(cur_id, 'c');
         direction = North;
-        
+        // cout << "[" << path.front() << "]";
         for (int d = 0; d < 4; ++d) {
           //for all directions
             
             if (direction == North && r != 0 && hWall[r][c] == 0) {
-                //std::cout << "check north" << std::endl;
+                // std::cout << "check north" << std::endl;
                 if (path.front() == get_id(r-1, c)) {
                     // next one is north
                     // set the cur_id to next nodes id
+                    // cout << "next step is north" << endl;
                     cur_id = get_id(r-1, c);
                     path.erase(path.begin());
                     int a = dir_dif(my_heading, direction);
@@ -816,13 +854,15 @@ string path_plan(int start_id, int goal_id, heading init_heading, vector<int> pa
                         // no turn just go forward
                         pathplan += "F";
                     }
+                    // std::cout << "heading: " << my_heading << std::endl;
+                    // cout << "dir_dif = " << a << endl;
                     my_heading = dir_trans(my_heading, a);
-                    //std::cout << "heading: " << heading << std::endl;
                     
                 }
             } else if (direction == East && c != MAP_COLS - 1 && vWall[r][c+1] == 0) {
-                //std::cout << "check east" << std::endl;
+                // std::cout << "check east" << std::endl;
                 if (path.front() == get_id(r, c+1)) {
+                    // cout << "next step is east" << endl;
                     cur_id = get_id(r, c+1);
                     path.erase(path.begin());
                     int a = dir_dif(my_heading, direction);
@@ -839,12 +879,15 @@ string path_plan(int start_id, int goal_id, heading init_heading, vector<int> pa
                         // no turn just go forward
                         pathplan += "F";
                     }
+                    // std::cout << "heading: " << my_heading << std::endl;
+                    // cout << "dir_dif = " << a << endl;
                     my_heading = dir_trans(my_heading, a);
-                    //std::cout << "heading: " << heading << std::endl;
+                    
                 }
             } else if (direction == South && r != MAP_ROWS - 1 && hWall[r+1][c] == 0) {
-                //std::cout << "check south" << std::endl;
+                // std::cout << "check south" << std::endl;
                 if (path.front() == get_id(r+1, c)) {
+                    // cout << "next step is south" << endl;
                     cur_id = get_id(r+1, c);
                     path.erase(path.begin());
                     int a = dir_dif(my_heading, direction);
@@ -861,12 +904,15 @@ string path_plan(int start_id, int goal_id, heading init_heading, vector<int> pa
                         // no turn just go forward
                         pathplan += "F";
                     }
+                    // std::cout << "heading: " << my_heading << std::endl;
+                    // cout << "dir_dif = " << a << endl;
                     my_heading = dir_trans(my_heading, a);
-                    //std::cout << "heading: " << heading << std::endl;
+
                 }
             } else if (direction == West && c != 0 && vWall[r][c] == 0) {
-                //std::cout << "check west" << std::endl;
+                // std::cout << "check west" << std::endl;
                 if (path.front() == get_id(r, c-1)) {
+                    // cout << "next step is west" << endl;
                     cur_id = get_id(r, c-1);
                     path.erase(path.begin());
                     int a = dir_dif(my_heading, direction);
@@ -883,8 +929,10 @@ string path_plan(int start_id, int goal_id, heading init_heading, vector<int> pa
                         // no turn just go forward
                         pathplan += "F";
                     }
+                    // std::cout << "heading: " << my_heading << std::endl;
+                    // cout << "dir_dif = " << a << endl;
                     my_heading = dir_trans(my_heading, a);
-                    //std::cout << "heading: " << heading << std::endl;
+                   
                 }
             }
             advance_direction(direction);
@@ -901,10 +949,10 @@ int dir_dif(heading a,heading b) {
          2
     thus, a difference of 1 is a single turn and a difference of 2 is 2 turns LL or RR
     */
-    int dif = 0;
-    if ((a-b) == -3) {
+    int dif = a - b;
+    if (dif == -3) {
         dif = 1;
-    } else if ((a-b) == 3) {
+    } else if (dif == 3) {
         dif = -1;
     }
     return dif;
@@ -913,9 +961,141 @@ int dir_dif(heading a,heading b) {
 heading dir_trans(heading dir_num, int dir_dif) {
     int new_dir = dir_num - dir_dif;
     if (new_dir == 4) {
-        dir_num = North;
+        new_dir = North;
     } else if (new_dir == -1) {
-        dir_num = West;
+        new_dir = West;
     }
-    return dir_num;
+    return static_cast<heading>(new_dir);
+}
+
+// moves robot by following the instruct string 
+void robot_follow_steps(string instruct, Robot* robot, robotsensors (&sensors), 
+                        walldata (&walls), Motor* leftMotor, Motor* rightMotor, 
+                        PositionSensor *left_en, PositionSensor *right_en, 
+                        double l_position, double r_position, 
+                        double l_encoder_pos, double r_encoder_pos) {
+  
+  std::string::iterator it = instruct.begin();
+  for (it = instruct.begin(); it != instruct.end(); it += 2) {
+        it = instruct.insert(it, 'W');
+    }
+  it = instruct.end();
+  it = instruct.insert(it, 'W');
+  it = instruct.begin();
+
+  bool waiting_state = false;
+  double wait_time = TIME_STEP * 0.001 * 16;
+  double prev_time = 0.0;
+
+  cout << "instructions" << instruct << endl;
+  while (robot->step(TIME_STEP) != -1) {
+    if (it == instruct.end()) {
+      break;
+    }
+    if (*it == 'W'){
+      if (waiting_state == false) {
+        prev_time = robot->getTime();
+        waiting_state = true;
+      }
+      if (robot->getTime() < prev_time + wait_time) {
+        // do nothing for some wait_time
+      } else {
+        ++it;
+        waiting_state = false;
+      }
+    } else if (*it == 'F') {
+      leftMotor->setVelocity(0.8 * MAX_SPEED);
+      rightMotor->setVelocity(0.8 * MAX_SPEED);
+        
+      leftMotor->setPosition(l_position + TILE_STEP);
+      rightMotor->setPosition(r_position + TILE_STEP);
+      
+      l_position += TILE_STEP;
+      r_position += TILE_STEP;
+      //read sesors to check position and walls  
+      while (l_position-TOLERANCE >= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos) {
+        robot->step(TIME_STEP);
+        l_encoder_pos = left_en->getValue();
+        r_encoder_pos = right_en->getValue();
+      }
+      //adjust rows and cols value
+      switch (walls.heading_) {
+        case North: //NORTH
+          walls.row -= 1;
+          break;
+        case East: //EAST
+          walls.col += 1;
+          break;
+        case South: //SOUTH
+          walls.row += 1;
+          break;
+        case West: //WEST
+          walls.col -= 1;
+          break;
+      }
+      ++it;
+    } else if (*it == 'L') {
+      leftMotor->setVelocity(0.4 * MAX_SPEED);
+      rightMotor->setVelocity(0.4 * MAX_SPEED);
+       
+      leftMotor->setPosition(l_position - ROTATE_STEP);
+      rightMotor->setPosition(r_position + ROTATE_STEP);
+      
+      l_position -= ROTATE_STEP;
+      r_position += ROTATE_STEP;
+      //read sesors to check position and walls  
+      while (l_position+TOLERANCE <= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos) {
+        robot->step(TIME_STEP);
+        l_encoder_pos = left_en->getValue();
+        r_encoder_pos = right_en->getValue();
+      }
+      //adjust heading
+      switch (walls.heading_){
+        case (North):
+          walls.heading_ = West;
+          break;
+        case (East):
+          walls.heading_ = North;
+          break;
+        case (South):
+          walls.heading_ = East;
+          break;
+        case (West):
+          walls.heading_ = South;
+          break;
+      }
+      ++it;
+    } else if (*it == 'R') {
+      leftMotor->setVelocity(0.4 * MAX_SPEED);
+      rightMotor->setVelocity(0.4 * MAX_SPEED);
+       
+      leftMotor->setPosition(l_position + ROTATE_STEP);
+      rightMotor->setPosition(r_position - ROTATE_STEP);
+      
+      l_position += ROTATE_STEP;
+      r_position -= ROTATE_STEP;
+      //read sesors to check position and walls  
+      while (l_position-TOLERANCE >= l_encoder_pos && r_position+TOLERANCE <= r_encoder_pos){
+        robot->step(TIME_STEP);
+        l_encoder_pos = left_en->getValue();
+        r_encoder_pos = right_en->getValue();
+      }
+      //adjust heading
+      switch (walls.heading_){
+        case North:
+          walls.heading_ = East;
+          break;
+        case East:
+          walls.heading_ = South;
+          break;
+        case South:
+          walls.heading_ = West;
+          break;
+        case West:
+          walls.heading_ = North;
+          break;
+      }
+      ++it;
+    }
+  }
 }

@@ -16,6 +16,7 @@
 #include <iostream>
 #include <string.h>
 #include <vector>
+#include <algorithm>
 
 #define TIME_STEP 64
 #define MAX_SPEED 6.28
@@ -367,6 +368,8 @@ int main(int argc, char **argv) {
   vector<vector<int>> paths;
   // possible intial locations matrix
   vector<int> potential_cells {};
+  //vector to hold current path
+  vector<int> current_path {};
 
   //setup heading
   heading my_heading = KNOWN_HEADING;
@@ -384,19 +387,40 @@ int main(int argc, char **argv) {
     for (int c = 0; c < MAP_COLS; ++c) {
       if (floodfill_matrix[r][c] < 45) {
         if (compare_walls(walls, r, c, map_walls) == true) {
-          potential_cells.push_back(get_id(r, c));
+          //potential_cells.push_back(get_id(r, c));
+          cout << r << c << endl;
           vector<int> temp_path;
-          get_short_path_from_id(floodfill_matrix, get_id(r, c), get_id(GOAL_ROW, GOAL_COL), temp_path, walls);
+          temp_path.push_back(get_id(r,c));
+          //get_short_path_from_id(floodfill_matrix, get_id(r, c), get_id(GOAL_ROW, GOAL_COL), temp_path, walls);
           paths.push_back(temp_path);
         }
       }
     }
   }
-  cout << "potential cells ";
+  //find id of potential positions that have the smallest floodfill value
+  //that ISNT the goal
+  int smallestflood = 45;
+  int current_path_id;
+  for (int i = 0; i < paths.size(); i++) {
+    int r = get_rc(paths[i][0], 'r');
+    int c = get_rc(paths[i][0], 'c');
+    if (r != GOAL_ROW || c != GOAL_COL) {
+      if (floodfill_matrix[r][c] < smallestflood) {
+        smallestflood = floodfill_matrix[r][c];
+        current_path_id = paths[i][0];
+        cout << smallestflood << endl;
+      }
+    }
+  }
+  //generate path from start closest to goal
+  get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls);
+  
+  /*cout << "potential cells ";
   for (auto& e : potential_cells) {
     cout << e << " ";
   }
   cout << endl;
+  */
   for (auto& e : paths) {
     cout << "[";
     for (auto& f : e) {
@@ -404,6 +428,10 @@ int main(int argc, char **argv) {
     }
     cout << "]" << endl;
   }
+  for (auto& e : current_path) {
+    cout << e << " ";
+  }
+  cout << endl;
   /*
   vector<int> cur_cells {};
   vector<int> prev_cells {};
@@ -423,7 +451,7 @@ int main(int argc, char **argv) {
       break;
     }
   }
-  */
+ */
   delete robot;
   
   return 0;
@@ -658,6 +686,7 @@ int get_id(int r, int c) {
 }
 
 void advance_direction(heading (&direction)) {
+  //rotate direction clockwise
   switch (direction) {
     case North:
       direction = East;
@@ -678,7 +707,9 @@ bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls
   // for each direction check if that wall matches with the map_walls 
   // if at least one of the walls dont match, then we know its not an potential starting position
   bool wall_check = true;
+  //begin at north
   heading dir_check = North;
+  //for all directions check if current location matches
   for (int d = 0; d < 4; ++d) {
     if (dir_check == North) {
       if (walls.hwalls[row][col] != map_walls.N) {
@@ -697,8 +728,10 @@ bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls
         wall_check = false;
       }
     }
+    //check next direction
     advance_direction(dir_check);
   }
+  //return bool whether walls match
   return wall_check;
 }
 

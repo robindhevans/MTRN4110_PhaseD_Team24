@@ -16,6 +16,7 @@
 #include <iostream>
 #include <string.h>
 #include <vector>
+#include <algorithm>
 
 #define TIME_STEP 64
 #define MAX_SPEED 6.28
@@ -81,6 +82,10 @@ int get_id(int r, int c);
 void advance_direction(heading (&direction));
 bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls);
 void get_short_path_from_id(int (&floodfill_matrix)[MAP_ROWS][MAP_COLS], int start_id, int goal_id, vector<int> (&temp_path), walldata (&walls));
+string path_plan(int start_id, int goal_id, heading init_heading, vector<int> path, int hWall[MAP_ROWS+1][MAP_COLS], int vWall[MAP_ROWS][MAP_COLS+1]);
+int dir_num(heading direction);
+int dir_dif(heading a, heading b);
+heading dir_trans(heading dir_num, int dir_dif);
 
 int main(int argc, char **argv) {
   walldata walls;
@@ -363,11 +368,10 @@ int main(int argc, char **argv) {
     }
     cout << endl;
   }
-  //setup paths vector
+  //setup paths vector to hold visited cells and potential locations
   vector<vector<int>> paths;
-  // possible intial locations matrix
-  vector<int> potential_cells {};
-
+  //vector to hold current path
+  vector<int> current_path {};
   //setup heading
   heading my_heading = KNOWN_HEADING;
   //check surrounding walls
@@ -384,19 +388,32 @@ int main(int argc, char **argv) {
     for (int c = 0; c < MAP_COLS; ++c) {
       if (floodfill_matrix[r][c] < 45) {
         if (compare_walls(walls, r, c, map_walls) == true) {
-          potential_cells.push_back(get_id(r, c));
+          //cout << r << c << endl;
           vector<int> temp_path;
-          get_short_path_from_id(floodfill_matrix, get_id(r, c), get_id(GOAL_ROW, GOAL_COL), temp_path, walls);
+          temp_path.push_back(get_id(r,c));
           paths.push_back(temp_path);
         }
       }
     }
   }
-  cout << "potential cells ";
-  for (auto& e : potential_cells) {
-    cout << e << " ";
+  //find id of potential positions that have the smallest floodfill value
+  //that ISNT the goal
+  int smallestflood = 45;
+  int current_path_id = 0;
+  for (int i = 0; i < paths.size(); i++) {
+    int r = get_rc(paths[i][0], 'r');
+    int c = get_rc(paths[i][0], 'c');
+    if (r != GOAL_ROW || c != GOAL_COL) {
+      if (floodfill_matrix[r][c] < smallestflood) {
+        smallestflood = floodfill_matrix[r][c];
+        current_path_id = paths[i][0];
+        cout << smallestflood << endl;
+      }
+    }
   }
-  cout << endl;
+  //generate path from start closest to goal
+  get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls);
+
   for (auto& e : paths) {
     cout << "[";
     for (auto& f : e) {
@@ -404,6 +421,13 @@ int main(int argc, char **argv) {
     }
     cout << "]" << endl;
   }
+  for (auto& e : current_path) {
+    cout << e << " ";
+  }
+  cout << endl;
+  //generate instructions
+  string robot_instruct = path_plan(current_path_id, get_id(GOAL_ROW,GOAL_COL), my_heading, current_path, walls.hwalls, walls.vwalls);
+  cout << robot_instruct << endl;
   /*
   vector<int> cur_cells {};
   vector<int> prev_cells {};
@@ -423,7 +447,7 @@ int main(int argc, char **argv) {
       break;
     }
   }
-  */
+ */
   delete robot;
   
   return 0;
@@ -658,6 +682,7 @@ int get_id(int r, int c) {
 }
 
 void advance_direction(heading (&direction)) {
+  //rotate direction clockwise
   switch (direction) {
     case North:
       direction = East;
@@ -678,7 +703,9 @@ bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls
   // for each direction check if that wall matches with the map_walls 
   // if at least one of the walls dont match, then we know its not an potential starting position
   bool wall_check = true;
+  //begin at north
   heading dir_check = North;
+  //for all directions check if current location matches
   for (int d = 0; d < 4; ++d) {
     if (dir_check == North) {
       if (walls.hwalls[row][col] != map_walls.N) {
@@ -697,8 +724,10 @@ bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls
         wall_check = false;
       }
     }
+    //check next direction
     advance_direction(dir_check);
   }
+  //return bool whether walls match
   return wall_check;
 }
 
@@ -748,4 +777,145 @@ void get_short_path_from_id(int (&floodfill_matrix)[MAP_ROWS][MAP_COLS], int sta
       advance_direction(dir_check);
     }
   }
+}
+
+string path_plan(int start_id, int goal_id, heading init_heading, vector<int> path, int hWall[MAP_ROWS+1][MAP_COLS], int vWall[MAP_ROWS][MAP_COLS+1]) {
+    // given a set of the ids of a path and robot's initial heading
+    // determine the amount of turns required and generate turns
+    int cur_id = start_id;
+    string pathplan;
+    //path.erase(cur_id);
+    heading direction = North;
+    heading my_heading = init_heading;
+    while (cur_id != goal_id) {
+        int r = get_rc(cur_id, 'r');
+        int c = get_rc(cur_id, 'c');
+        direction = North;
+        
+        for (int d = 0; d < 4; ++d) {
+          //for all directions
+            
+            if (direction == North && r != 0 && hWall[r][c] == 0) {
+                //std::cout << "check north" << std::endl;
+                if (path.front() == get_id(r-1, c)) {
+                    // next one is north
+                    // set the cur_id to next nodes id
+                    cur_id = get_id(r-1, c);
+                    path.erase(path.begin());
+                    int a = dir_dif(my_heading, direction);
+                    if (a == 2) {
+                        // we are turning twice
+                        pathplan += "LLF";
+                    } else if (a == 1) {
+                        // we are turning left
+                        pathplan += "LF";
+                    } else if (a == -1) {
+                        // we are turning right
+                        pathplan += "RF";
+                    } else if (a == 0) {
+                        // no turn just go forward
+                        pathplan += "F";
+                    }
+                    my_heading = dir_trans(my_heading, a);
+                    //std::cout << "heading: " << heading << std::endl;
+                    
+                }
+            } else if (direction == East && c != MAP_COLS - 1 && vWall[r][c+1] == 0) {
+                //std::cout << "check east" << std::endl;
+                if (path.front() == get_id(r, c+1)) {
+                    cur_id = get_id(r, c+1);
+                    path.erase(path.begin());
+                    int a = dir_dif(my_heading, direction);
+                    if (a == 2) {
+                        // we are turning twice
+                        pathplan += "LLF";
+                    } else if (a == 1) {
+                        // we are turning left
+                        pathplan += "LF";
+                    } else if (a == -1) {
+                        // we are turning right
+                        pathplan += "RF";
+                    } else if (a == 0) {
+                        // no turn just go forward
+                        pathplan += "F";
+                    }
+                    my_heading = dir_trans(my_heading, a);
+                    //std::cout << "heading: " << heading << std::endl;
+                }
+            } else if (direction == South && r != MAP_ROWS - 1 && hWall[r+1][c] == 0) {
+                //std::cout << "check south" << std::endl;
+                if (path.front() == get_id(r+1, c)) {
+                    cur_id = get_id(r+1, c);
+                    path.erase(path.begin());
+                    int a = dir_dif(my_heading, direction);
+                    if (a == 2) {
+                        // we are turning twice
+                        pathplan += "LLF";
+                    } else if (a == 1) {
+                        // we are turning left
+                        pathplan += "LF";
+                    } else if (a == -1) {
+                        // we are turning right
+                        pathplan += "RF";
+                    } else if (a == 0) {
+                        // no turn just go forward
+                        pathplan += "F";
+                    }
+                    my_heading = dir_trans(my_heading, a);
+                    //std::cout << "heading: " << heading << std::endl;
+                }
+            } else if (direction == West && c != 0 && vWall[r][c] == 0) {
+                //std::cout << "check west" << std::endl;
+                if (path.front() == get_id(r, c-1)) {
+                    cur_id = get_id(r, c-1);
+                    path.erase(path.begin());
+                    int a = dir_dif(my_heading, direction);
+                    if (a == 2) {
+                        // we are turning twice
+                        pathplan += "LLF";
+                    } else if (a == 1) {
+                        // we are turning left
+                        pathplan += "LF";
+                    } else if (a == -1) {
+                        // we are turning right
+                        pathplan += "RF";
+                    } else if (a == 0) {
+                        // no turn just go forward
+                        pathplan += "F";
+                    }
+                    my_heading = dir_trans(my_heading, a);
+                    //std::cout << "heading: " << heading << std::endl;
+                }
+            }
+            advance_direction(direction);
+        }
+    }
+    return(pathplan);
+}
+
+int dir_dif(heading a,heading b) {
+    /*
+    assigned direciton numbers are as such
+         0
+      3     1
+         2
+    thus, a difference of 1 is a single turn and a difference of 2 is 2 turns LL or RR
+    */
+    int dif = 0;
+    if ((a-b) == -3) {
+        dif = 1;
+    } else if ((a-b) == 3) {
+        dif = -1;
+    }
+    return dif;
+}
+
+heading dir_trans(heading dir_num, int dir_dif) {
+    int new_dir = dir_num - dir_dif;
+    if (new_dir == 4) {
+        dir_num = North;
+    } else if (new_dir == -1) {
+        dir_num = West;
+    }
+    return dir_num;
 }

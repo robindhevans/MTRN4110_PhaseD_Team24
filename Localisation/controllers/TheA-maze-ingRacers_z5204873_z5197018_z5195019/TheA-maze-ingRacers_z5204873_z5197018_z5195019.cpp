@@ -67,8 +67,8 @@ struct walls_detected {
   bool W = true;
   } robot_walls, map_walls;
 //struct robot_walls holds last reading from sensors, directions are from robot
-  //reference frame
-  //struct map_walls holds last wall directions in map reference frame.
+//reference frame
+//struct map_walls holds last wall directions in map reference frame.
 
 //For exploration
 void checkWalls(robotsensors sensors, walldata &walls);

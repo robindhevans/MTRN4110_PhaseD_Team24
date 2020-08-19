@@ -283,29 +283,29 @@ int main(int argc, char **argv) {
   
   // testing walls to skip exploration part
   // original world
-  // int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
-  //                                        {0, 1, 0, 0, 0, 0, 1, 0, 0},
-  //                                        {1, 0, 0, 0, 1, 1, 0, 1, 0},
-  //                                        {0, 0, 1, 0, 1, 1, 1, 0, 0},
-  //                                        {0, 0, 1, 0, 0, 1, 0, 1, 0},
-  //                                        {1, 1, 1, 1, 1, 1, 1, 1, 1}};
-  // int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 
-  //                                        {1, 0, 0, 1, 0, 0, 1, 1, 0, 1},
-  //                                        {1, 0, 1, 1, 1, 0, 0, 0, 0, 1},
-  //                                        {1, 1, 0, 0, 0, 0, 1, 0, 0, 1},
-  //                                        {1, 1, 0, 0, 1, 0, 0, 1, 0, 1}};
-  // testworld1            
   int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
-                                         {0, 0, 1, 0, 0, 1, 0, 0, 0},
-                                         {0, 1, 0, 0, 1, 0, 0, 0, 0},
-                                         {0, 1, 0, 0, 1, 0, 0, 0, 0},
-                                         {0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                         {0, 1, 0, 0, 0, 0, 1, 0, 0},
+                                         {1, 0, 0, 0, 1, 1, 0, 1, 0},
+                                         {0, 0, 1, 0, 1, 1, 1, 0, 0},
+                                         {0, 0, 1, 0, 0, 1, 0, 1, 0},
                                          {1, 1, 1, 1, 1, 1, 1, 1, 1}};
-  int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
-                                         {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
-                                         {1, 1, 0, 1, 1, 0, 1, 0, 0, 1},
-                                         {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
-                                         {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+  int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 
+                                         {1, 0, 0, 1, 0, 0, 1, 1, 0, 1},
+                                         {1, 0, 1, 1, 1, 0, 0, 0, 0, 1},
+                                         {1, 1, 0, 0, 0, 0, 1, 0, 0, 1},
+                                         {1, 1, 0, 0, 1, 0, 0, 1, 0, 1}};
+  // testworld1            
+  // int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
+  //                                        {0, 0, 1, 0, 0, 1, 0, 0, 0},
+  //                                        {0, 1, 0, 0, 1, 0, 0, 0, 0},
+  //                                        {0, 1, 0, 0, 1, 0, 0, 0, 0},
+  //                                        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+  //                                        {1, 1, 1, 1, 1, 1, 1, 1, 1}};
+  // int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+  //                                        {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
+  //                                        {1, 1, 0, 1, 1, 0, 1, 0, 0, 1},
+  //                                        {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
+  //                                        {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
   
   for (int i = 0; i < MAP_ROWS+1; ++i) {
     for (int j = 0; j < MAP_COLS; ++j) {
@@ -686,6 +686,23 @@ int main(int argc, char **argv) {
     } else {
       cout << "Robot Localised!!" << endl;
       cout << "ROBOT INITIAL LOCATION WAS : [" << get_rc(paths[0][0], 'r') << ", " << get_rc(paths[0][0], 'c') << "]" << endl;
+      cout << "heading = " << my_heading << endl;
+      int robot_local_id = paths[0].back();
+      vector<int> goal_path {};
+      cout << "robot is now at " << robot_local_id << endl;
+      get_short_path_from_id(floodfill_matrix, robot_local_id, get_id(GOAL_ROW, GOAL_COL), goal_path, walls);
+      for (auto& e : goal_path) {
+        cout << e << " ";
+      }
+      cout << endl;
+      //goal_path.insert(goal_path.begin(), robot_local_id);
+      string goal_instruct = get_path_instruct(robot_local_id, get_id(GOAL_ROW, GOAL_COL), my_heading, goal_path, walls.hwalls, walls.vwalls);
+      cout << goal_instruct << endl;
+      for (auto& e : goal_instruct) {
+        robot->step(TIME_STEP);
+        robot_follow_steps(e, robot, sensors, leftMotor, rightMotor, left_en, right_en);
+      }
+      cout << "Goal reached!!!" << endl;
       break;
     }
   }
@@ -981,7 +998,7 @@ void get_short_path_from_id(int (&floodfill_matrix)[MAP_ROWS][MAP_COLS], int sta
   // grab the shortest path from a start id to goal id
   if (!temp_path.empty()){
     temp_path.clear();
-    }
+  }
   int cur_id = start_id;
   heading cur_heading = KNOWN_HEADING;
   int cur_flood = 0;
@@ -1053,7 +1070,7 @@ string get_path_instruct(int start_id, int goal_id, heading init_heading, vector
                     cur_id = get_id(r-1, c);
                     path.erase(path.begin());
                     int a = dir_dif(my_heading, direction);
-                    if (a == 2) {
+                    if (abs(a) == 2) {
                         // we are turning twice
                         pathplan += "LLF";
                     } else if (a == 1) {
@@ -1078,7 +1095,7 @@ string get_path_instruct(int start_id, int goal_id, heading init_heading, vector
                     cur_id = get_id(r, c+1);
                     path.erase(path.begin());
                     int a = dir_dif(my_heading, direction);
-                    if (a == 2) {
+                    if (abs(a) == 2) {
                         // we are turning twice
                         pathplan += "LLF";
                     } else if (a == 1) {
@@ -1103,7 +1120,7 @@ string get_path_instruct(int start_id, int goal_id, heading init_heading, vector
                     cur_id = get_id(r+1, c);
                     path.erase(path.begin());
                     int a = dir_dif(my_heading, direction);
-                    if (a == 2) {
+                    if (abs(a) == 2) {
                         // we are turning twice
                         pathplan += "LLF";
                     } else if (a == 1) {
@@ -1128,7 +1145,7 @@ string get_path_instruct(int start_id, int goal_id, heading init_heading, vector
                     cur_id = get_id(r, c-1);
                     path.erase(path.begin());
                     int a = dir_dif(my_heading, direction);
-                    if (a == 2) {
+                    if (abs(a) == 2) {
                         // we are turning twice
                         pathplan += "LLF";
                     } else if (a == 1) {

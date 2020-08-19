@@ -8,6 +8,8 @@
 #include <fstream>
 #include <string.h>
 
+
+
 #define TIME_STEP 64
 #define MAX_SPEED 6.28
 #define ROTATE_STEP 2.2227
@@ -23,58 +25,69 @@
 using namespace webots;
 using namespace std;
 
+typedef struct robdata robdata;
+struct robdata {
+  char heading;
+    //North=0 - East=1 - South=2 - West=3
+  int row;
+  int col;
+  int step;
+  };
+  
+typedef struct robotsensors robotsensors;
+struct robotsensors {
+  DistanceSensor *front_ds;
+  DistanceSensor *right_ds;
+  DistanceSensor *left_ds;
+  Motor *leftMotor;
+  Motor *rightMotor;
+  PositionSensor *left_en;
+  PositionSensor *right_en;
+  double l_target = 0.0;
+  double r_target = 0.0;
+  
+  double l_pos = 0.0;
+  double r_pos = 0.0;
+  
+  }; 
 
-void checkWalls (char& Lwall, char& Fwall, char& Rwall, double LeftDis, double FrontDis, double RightDis);
+void checkwalls (robotsensors sensors, robdata robo);
+void forward(int seq, Robot *robot, robotsensors &sensors, robdata &robo);
+void left(Robot *robot, robotsensors &sensors, robdata &robo);
+void right(Robot *robot, robotsensors &sensors, robdata &robo);
 
 int main(int argc, char **argv) {
   //variables
   char pathPlan[50];
+  robotsensors sensors;
+  robdata robo;
   
-  double l_position = 0.0;
-  double r_position = 0.0;
-  
-  double l_encoder_pos = 0.0;
-  double r_encoder_pos = 0.0;
-  
-  double FrontDis = 0.0;
-  double RightDis = 0.0;
-  double LeftDis = 0.0;
-  
-  int row = 0;
-  int col = 0;
-  char heading = 'N';
-  char Lwall = 'N';
-  char Fwall = 'N';
-  char Rwall = 'N';
   
   //initialise robot
   Robot *robot = new Robot();
   // get a handler to the motors.
-  Motor *leftMotor = robot->getMotor("left wheel motor");
-  Motor *rightMotor = robot->getMotor("right wheel motor");
+  sensors.leftMotor = robot->getMotor("left wheel motor");
+  sensors.rightMotor = robot->getMotor("right wheel motor");
 
-  DistanceSensor *front_ds = robot->getDistanceSensor("F_DS");
-  DistanceSensor *right_ds = robot->getDistanceSensor("R_DS");
-  DistanceSensor *left_ds = robot->getDistanceSensor("L_DS");
+  sensors.front_ds = robot->getDistanceSensor("F_DS");
+  sensors.right_ds = robot->getDistanceSensor("R_DS");
+  sensors.left_ds = robot->getDistanceSensor("L_DS");
   
-  PositionSensor *left_en = robot->getPositionSensor("left wheel sensor");
-  PositionSensor *right_en = robot->getPositionSensor("right wheel sensor");
+  sensors.left_en = robot->getPositionSensor("left wheel sensor");
+  sensors.right_en = robot->getPositionSensor("right wheel sensor");
   
-  front_ds->enable(TIME_STEP);
-  right_ds->enable(TIME_STEP);
-  left_ds->enable(TIME_STEP);
-  left_en->enable(TIME_STEP);
-  right_en->enable(TIME_STEP);
+  sensors.front_ds->enable(TIME_STEP);
+  sensors.right_ds->enable(TIME_STEP);
+  sensors.left_ds->enable(TIME_STEP);
+  sensors.left_en->enable(TIME_STEP);
+  sensors.right_en->enable(TIME_STEP);
 
   robot->step(TIME_STEP);
-  
 
-  //leftMotor->setPosition(8.25);
-  //rightMotor->setPosition(8.25);
-  leftMotor->setVelocity(0.8 * MAX_SPEED);
-  rightMotor->setVelocity(0.8 * MAX_SPEED);
-  //leftMotor->setPosition(TILE_STEP);
-  //rightMotor->setPosition(TILE_STEP);
+
+  sensors.leftMotor->setVelocity(0.8 * MAX_SPEED);
+  sensors.rightMotor->setVelocity(0.8 * MAX_SPEED);
+
   
   // read file in path 
   ifstream pathFile;
@@ -89,145 +102,38 @@ int main(int argc, char **argv) {
   cout << "Done - Path plan read!" << endl;
   cout << "Start - Execute path plan!" << endl;
   
-  // read initial step before entering loop.
-  FrontDis = front_ds->getValue();
-  RightDis = right_ds->getValue();
-  LeftDis = left_ds->getValue();
   
-  checkWalls(Lwall, Fwall, Rwall, LeftDis, FrontDis, RightDis);
+  robo.row = (int)pathPlan[0]-48;
+  robo.col = (int)pathPlan[1]-48;
+  robo.heading = pathPlan[2];
+  robo.step = 2;
   
-  row = (int)pathPlan[0]-48;
-  col = (int)pathPlan[1]-48;
-  heading = pathPlan[2];
-  
-  cout<<"Step: 00, Row: "<<row<<", Column: "<<col<<", Heading: "<<heading<<", Left Wall: "<<Lwall<<", Front Wall: "<<Fwall<<", Right Wall: "<<Rwall<<endl;
- 
-  int i = 3;
   int planLength = strlen(pathPlan);
 
-  while (i < planLength && robot->step(TIME_STEP) != -1){
-      
+  while (robo.step < planLength && robot->step(TIME_STEP) != -1){
+    int seq = 0;
     //Start forward instruction
-    if (pathPlan[i] == 'F'){
-      leftMotor->setVelocity(0.8 * MAX_SPEED);
-      rightMotor->setVelocity(0.8 * MAX_SPEED);
-        
-      leftMotor->setPosition(l_position + TILE_STEP);
-      rightMotor->setPosition(r_position + TILE_STEP);
-      
-      l_position += TILE_STEP;
-      r_position += TILE_STEP;
-      //read sesors to check position and walls  
-      while (l_position-TOLERANCE >= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos){
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-        
-        FrontDis = front_ds->getValue();
-        RightDis = right_ds->getValue();
-        LeftDis = left_ds->getValue();
+    if (pathPlan[robo.step] == 'F'){
+      for(seq = 0; pathPlan[robo.step+seq] == 'F'; seq++){
       }
-      //adjust rows and cols value
-      switch (heading){
-        case 'S':
-          row += 1;
-          break;
-        case 'N':
-          row -= 1;
-          break;
-        case 'E':
-          col += 1;
-          break;
-        case 'W':
-          col -= 1;
-          break;
-      }
-    }
+      forward(seq, robot, sensors, robo);
+    }  
+        
     //End forward instruction
     
     //start left rotation instruction
-    else if (pathPlan[i] == 'L'){
-      leftMotor->setVelocity(0.4 * MAX_SPEED);
-      rightMotor->setVelocity(0.4 * MAX_SPEED);
-       
-      leftMotor->setPosition(l_position - ROTATE_STEP);
-      rightMotor->setPosition(r_position + ROTATE_STEP);
-      
-      l_position -= ROTATE_STEP;
-      r_position += ROTATE_STEP;
-      //read sesors to check position and walls  
-      while (l_position+TOLERANCE <= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos){
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-        
-        FrontDis = front_ds->getValue();
-        RightDis = right_ds->getValue();
-        LeftDis = left_ds->getValue();
-
-      }
-      //adjust heading
-      switch (heading){
-        case 'S':
-          heading = 'E';
-          break;
-        case 'N':
-          heading = 'W';
-          break;
-        case 'E':
-          heading = 'N';
-          break;
-        case 'W':
-          heading = 'S';
-          break;
-      }
+    else if (pathPlan[robo.step] == 'L'){
+      left(robot, sensors, robo);
     }
-    //End left rotate instruction
     
     //start right rotate instruction
-    else if (pathPlan[i] == 'R'){
-      leftMotor->setVelocity(0.4 * MAX_SPEED);
-      rightMotor->setVelocity(0.4 * MAX_SPEED);
-       
-      leftMotor->setPosition(l_position + ROTATE_STEP);
-      rightMotor->setPosition(r_position - ROTATE_STEP);
-      
-      l_position += ROTATE_STEP;
-      r_position -= ROTATE_STEP;
-      //read sesors to check position and walls  
-      while (l_position-TOLERANCE >= l_encoder_pos && r_position+TOLERANCE <= r_encoder_pos){
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-        
-        FrontDis = front_ds->getValue();
-        RightDis = right_ds->getValue();
-        LeftDis = left_ds->getValue();
-        //cout << "getting pos values" << endl;
-      }
-      //adjust heading
-      switch (heading){
-        case 'S':
-          heading = 'W';
-          break;
-        case 'N':
-          heading = 'E';
-          break;
-        case 'E':
-          heading = 'S';
-          break;
-        case 'W':
-          heading = 'N';
-          break;
-      }
+    else if (pathPlan[robo.step] == 'R'){
+      right(robot, sensors, robo);
     }
     
     //print step information
-    checkWalls(Lwall, Fwall, Rwall, LeftDis, FrontDis, RightDis);
-    printf("Step: %02d, ", i-2);
-    cout<<"Row: "<<row<<", Column: "<<col<<", Heading: "<<heading;
-    cout<<", Left Wall: "<<Lwall<<", Front Wall: "<<Fwall<<", Right Wall: "<<Rwall<<endl;
-    i++;
+    checkwalls(sensors, robo);
+    robo.step++; 
   }
 
   cout << "Done - Path plan Executed" << endl;
@@ -239,26 +145,138 @@ int main(int argc, char **argv) {
 
 }
 
+void forward(int seq, Robot *robot, robotsensors &sensors, robdata &robo){
+  sensors.leftMotor->setVelocity(0.8 * MAX_SPEED);
+  sensors.rightMotor->setVelocity(0.8 * MAX_SPEED);
+        
+  sensors.leftMotor->setPosition(sensors.l_target + (seq*TILE_STEP));
+  sensors.rightMotor->setPosition(sensors.r_target + (seq*TILE_STEP));
+      
+  sensors.l_target += seq*TILE_STEP;
+  sensors.r_target += seq*TILE_STEP;
+     
+  int count = seq-1; 
+  // check sensors and compare target position
+  while (sensors.l_target-TOLERANCE >= sensors.l_pos && sensors.r_target-TOLERANCE >= sensors.r_pos){
+  robot->step(TIME_STEP);
+  sensors.l_pos = sensors.left_en->getValue();
+  sensors.r_pos = sensors.right_en->getValue();
+  
+  //detect complete tiles and update console and position
+    if(sensors.l_pos > sensors.l_target-(TILE_STEP*count+2*TOLERANCE)){
+      switch (robo.heading){
+        case 'S':
+          robo.row += 1;
+          break;
+        case 'N':
+          robo.row -= 1;
+          break;
+        case 'E':
+          robo.col += 1;
+          break;
+        case 'W':
+          robo.col -= 1;
+          break;
+      }
+      if(count > 0){
+        checkwalls(sensors, robo);
+        robo.step++;
+      }
+      count--;
+    }
+  }
+}
 
+void left(Robot *robot, robotsensors &sensors, robdata &robo){
+  sensors.leftMotor->setVelocity(0.4 * MAX_SPEED);
+  sensors.rightMotor->setVelocity(0.4 * MAX_SPEED);
 
-void checkWalls (char& Lwall, char& Fwall, char& Rwall, double LeftDis, double FrontDis, double RightDis){
+  sensors.leftMotor->setPosition(sensors.l_target - ROTATE_STEP);
+  sensors.rightMotor->setPosition(sensors.r_target + ROTATE_STEP);
+    
+  sensors.l_target -= ROTATE_STEP;
+  sensors.r_target += ROTATE_STEP;
+  //read sesors to check position and robo  
+  while (sensors.l_target+TOLERANCE <= sensors.l_pos && sensors.r_target-TOLERANCE >= sensors.r_pos){
+    robot->step(TIME_STEP);
+    sensors.l_pos = sensors.left_en->getValue();
+    sensors.r_pos = sensors.right_en->getValue();   
+  }
+  //adjust robo.heading
+  switch (robo.heading){
+    case 'S':
+      robo.heading = 'E';
+      break;
+    case 'N':
+      robo.heading = 'W';
+      break;
+    case 'E':
+      robo.heading = 'N';
+      break;
+    case 'W':
+      robo.heading = 'S';
+      break;
+  }
+}
 
+void right(Robot *robot, robotsensors &sensors, robdata &robo){
+  sensors.leftMotor->setVelocity(0.4 * MAX_SPEED);
+  sensors.rightMotor->setVelocity(0.4 * MAX_SPEED);
+  
+  sensors.leftMotor->setPosition(sensors.l_target + ROTATE_STEP);
+  sensors.rightMotor->setPosition(sensors.r_target - ROTATE_STEP);
+    
+  sensors.l_target += ROTATE_STEP;
+  sensors.r_target -= ROTATE_STEP;
+  //read sesors to check position and robo  
+  while (sensors.l_target-TOLERANCE >= sensors.l_pos && sensors.r_target+TOLERANCE <= sensors.r_pos){
+    robot->step(TIME_STEP);
+    sensors.l_pos = sensors.left_en->getValue();
+    sensors.r_pos = sensors.right_en->getValue();
+  }
+  //adjust robo.heading
+  switch (robo.heading){
+    case 'S':
+      robo.heading = 'W';
+      break;
+    case 'N':
+      robo.heading = 'E';
+      break;
+    case 'E':
+      robo.heading = 'S';
+      break;
+    case 'W':
+      robo.heading = 'N';
+      break;
+  }
+}
+  
+  
+void checkwalls (robotsensors sensors, robdata robo){
   //correct wall variables
-  if(LeftDis > 0.85){
+  char Lwall;
+  char Rwall;
+  char Fwall;  
+  
+  if(sensors.left_ds->getValue() > 0.85){
     Lwall = 'Y';
   }else{
     Lwall = 'N';
   }
   
-  if(FrontDis > 0.85){
+  if(sensors.front_ds->getValue() > 0.85){
     Fwall = 'Y';
   }else{ 
     Fwall = 'N';
   }
   
-  if(RightDis > 0.85){
+  if(sensors.right_ds->getValue() > 0.85){
     Rwall = 'Y';
   }else{
     Rwall = 'N';
   }
+  
+  printf("Step: %02d, ", robo.step-2);
+  cout<<"Row: "<<robo.row<<", Column: "<<robo.col<<", Heading: "<<robo.heading;
+  cout<<", Left Wall: "<<Lwall<<", Front Wall: "<<Fwall<<", Right Wall: "<<Rwall<<endl;
 }

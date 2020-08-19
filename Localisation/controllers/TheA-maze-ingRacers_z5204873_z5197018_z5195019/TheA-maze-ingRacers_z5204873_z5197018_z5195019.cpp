@@ -282,19 +282,19 @@ int main(int argc, char **argv) {
 
   
   // testing walls to skip exploration part
-  /*
-  int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
-                                         {0, 1, 0, 0, 0, 0, 1, 0, 0},
-                                         {1, 0, 0, 0, 1, 1, 0, 1, 0},
-                                         {0, 0, 1, 0, 1, 1, 1, 0, 0},
-                                         {0, 0, 1, 0, 0, 1, 0, 1, 0},
-                                         {1, 1, 1, 1, 1, 1, 1, 1, 1}};
-  int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 
-                                         {1, 0, 0, 1, 0, 0, 1, 1, 0, 1},
-                                         {1, 0, 1, 1, 1, 0, 0, 0, 0, 1},
-                                         {1, 1, 0, 0, 0, 0, 1, 0, 0, 1},
-                                         {1, 1, 0, 0, 1, 0, 0, 1, 0, 1}};
-                                         */
+  // original world
+  // int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
+  //                                        {0, 1, 0, 0, 0, 0, 1, 0, 0},
+  //                                        {1, 0, 0, 0, 1, 1, 0, 1, 0},
+  //                                        {0, 0, 1, 0, 1, 1, 1, 0, 0},
+  //                                        {0, 0, 1, 0, 0, 1, 0, 1, 0},
+  //                                        {1, 1, 1, 1, 1, 1, 1, 1, 1}};
+  // int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 
+  //                                        {1, 0, 0, 1, 0, 0, 1, 1, 0, 1},
+  //                                        {1, 0, 1, 1, 1, 0, 0, 0, 0, 1},
+  //                                        {1, 1, 0, 0, 0, 0, 1, 0, 0, 1},
+  //                                        {1, 1, 0, 0, 1, 0, 0, 1, 0, 1}};
+  // testworld1            
   int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
                                          {0, 0, 1, 0, 0, 1, 0, 0, 0},
                                          {0, 1, 0, 0, 1, 0, 0, 0, 0},
@@ -645,7 +645,6 @@ int main(int argc, char **argv) {
           cout << "Current Path ID: " << current_path_id << endl;
           cout << "New Instructions: " << robot_instruct << endl;
         }
-
         // print paths
           for (auto& e : paths) {
             cout << "[";
@@ -654,15 +653,38 @@ int main(int argc, char **argv) {
             }
             cout << "]" << endl;
           }
+      } else {
+          smallestflood = 45;
+          current_path_id = 0;
+          // grab new shortest path from END of a NON GOAL ending path -> GOAL
+          //find next smallest potential floodfill from current potential positions
+          for (vector<vector<int>>::iterator it = paths.begin(); it != paths.end(); it++) {
+            vector<int> temp_path = *it;
+            int origin_r = get_rc(temp_path.back(), 'r');
+            int origin_c = get_rc(temp_path.back(), 'c');
+            int r = get_rc(temp_path.back(), 'r');
+            int c = get_rc(temp_path.back(), 'c');
+            
+            if (origin_r != GOAL_ROW || origin_c != GOAL_COL) {
+              if (floodfill_matrix[r][c] < smallestflood) {
+                smallestflood = floodfill_matrix[r][c];
+                current_path_id = temp_path.back();
+              }
+            }
+          }
+          get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls); 
+          for (auto& e : current_path) {
+            cout << e << ' ';
+            // path in e
+          }
+          cout << endl;
+          robot_instruct = get_path_instruct(current_path_id, get_id(GOAL_ROW,GOAL_COL), my_heading, current_path, walls.hwalls, walls.vwalls);
+          cout << "Current Path ID: " << current_path_id << endl;
+          cout << "New Instructions: " << robot_instruct << endl;
+
       }
     } else {
-      for (auto& e : paths) {
-            cout << "[";
-            for (auto& f : e) {
-                std::cout << f << ' ';
-            }
-            cout << "]" << endl;
-          }
+      cout << "Robot Localised!!" << endl;
       cout << "ROBOT INITIAL LOCATION WAS : [" << get_rc(paths[0][0], 'r') << ", " << get_rc(paths[0][0], 'c') << "]" << endl;
       break;
     }

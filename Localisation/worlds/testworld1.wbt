@@ -524,7 +524,7 @@ DEF TheA-maze-ingRacers E-puck {
   hidden rotation_2 -1 0 0 5.158318024080128
   translation 0.165 0 0
   rotation 0 1 0 3.15159
-  controller "<extern>"
+  controller "TheA-maze-ingRacers_z5204873_z5197018_z5195019"
   camera_fieldOfView 1.29
   camera_width 1080
   camera_height 720

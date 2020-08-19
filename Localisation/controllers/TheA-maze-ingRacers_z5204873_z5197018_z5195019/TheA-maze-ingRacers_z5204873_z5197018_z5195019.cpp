@@ -87,11 +87,9 @@ string get_path_instruct(int start_id, int goal_id, heading init_heading, vector
 int dir_num(heading direction);
 int dir_dif(heading a, heading b);
 heading dir_trans(heading dir_num, int dir_dif);
-void robot_follow_steps(string instruct, Robot* robot, robotsensors (&sensors), 
+void robot_follow_steps(char instruct, Robot* robot, robotsensors (&sensors), 
                         walldata (&walls), Motor* leftMotor, Motor* rightMotor, 
-                        PositionSensor *left_en, PositionSensor *right_en, 
-                        double l_position, double r_position, 
-                        double l_encoder_pos, double r_encoder_pos);
+                        PositionSensor *left_en, PositionSensor *right_en);
 
 int main(int argc, char **argv) {
   walldata walls;
@@ -454,13 +452,16 @@ int main(int argc, char **argv) {
         Cur_path: generate new shortest path from end of a non goal ending path to goal 
     else break 
   */
-  vector<int>::iterator next_step = current_path.begin();
+  string::iterator next_step = robot_instruct.begin();
   while (true) {
     if (paths.size() > 1) {
-      string next_instruct = get_path_instruct(current_path_id, *next_step, my_heading, current_path, walls.hwalls, walls.vwalls);
-      robot_follow_steps(next_instruct, robot, sensors, walls, leftMotor,
-                         rightMotor, left_en, right_en, l_position, r_position, 
-                         l_encoder_pos, r_encoder_pos);
+      next_step = robot_instruct.begin();
+      //string next_instruct = get_path_instruct(current_path_id, *next_step, my_heading, current_path, walls.hwalls, walls.vwalls);
+      robot_follow_steps(*next_step, robot, sensors, walls, leftMotor,
+                         rightMotor, left_en, right_en);
+      if(*next_step != '\0') {
+        robot_instruct.erase(next_step);
+      }
       // relative position change??
       for (auto& e : paths) {
         *(e.end()) += abs(current_path_id - *next_step);
@@ -969,133 +970,115 @@ heading dir_trans(heading dir_num, int dir_dif) {
 }
 
 // moves robot by following the instruct string 
-void robot_follow_steps(string instruct, Robot* robot, robotsensors (&sensors), 
+void robot_follow_steps(char instruct, Robot* robot, robotsensors (&sensors), 
                         walldata (&walls), Motor* leftMotor, Motor* rightMotor, 
-                        PositionSensor *left_en, PositionSensor *right_en, 
-                        double l_position, double r_position, 
-                        double l_encoder_pos, double r_encoder_pos) {
+                        PositionSensor *left_en, PositionSensor *right_en) {
   
-  std::string::iterator it = instruct.begin();
-  for (it = instruct.begin(); it != instruct.end(); it += 2) {
-        it = instruct.insert(it, 'W');
-    }
-  it = instruct.end();
-  it = instruct.insert(it, 'W');
-  it = instruct.begin();
+  //std::string::iterator it = instruct.begin();
+  //for (it = instruct.begin(); it != instruct.end(); it += 2) {
+  //      it = instruct.insert(it, 'W');
+  //  }
+  //it = instruct.end();
+  //it = instruct.insert(it, 'W');
+  //it = instruct.begin();
 
-  bool waiting_state = false;
-  double wait_time = TIME_STEP * 0.001 * 16;
-  double prev_time = 0.0;
+  //bool waiting_state = false;
+ // double wait_time = TIME_STEP * 0.001 * 16;
+  //double prev_time = 0.0;
 
+  robot->step(TIME_STEP);
+  double l_position = left_en->getValue();
+  double r_position = right_en->getValue();
+  double l_encoder_pos = left_en->getValue();
+  double r_encoder_pos = right_en->getValue();
   cout << "instructions" << instruct << endl;
-  while (robot->step(TIME_STEP) != -1) {
-    if (it == instruct.end()) {
-      break;
+  if (instruct == 'F') {
+    //move forward
+    leftMotor->setVelocity(0.8 * MAX_SPEED);
+    rightMotor->setVelocity(0.8 * MAX_SPEED);
+    double left_target_pos = l_position + TILE_STEP;
+    double right_target_pos = r_position + TILE_STEP;
+    leftMotor->setPosition(left_target_pos);
+    rightMotor->setPosition(right_target_pos);
+  
+    while (left_target_pos-TOLERANCE >= left_en->getValue() && right_target_pos-TOLERANCE >= r_encoder_pos) {
+      robot->step(TIME_STEP);
     }
-    if (*it == 'W'){
-      if (waiting_state == false) {
-        prev_time = robot->getTime();
-        waiting_state = true;
-      }
-      if (robot->getTime() < prev_time + wait_time) {
-        // do nothing for some wait_time
-      } else {
-        ++it;
-        waiting_state = false;
-      }
-    } else if (*it == 'F') {
-      leftMotor->setVelocity(0.8 * MAX_SPEED);
-      rightMotor->setVelocity(0.8 * MAX_SPEED);
-        
-      leftMotor->setPosition(l_position + TILE_STEP);
-      rightMotor->setPosition(r_position + TILE_STEP);
-      
-      l_position += TILE_STEP;
-      r_position += TILE_STEP;
-      //read sesors to check position and walls  
-      while (l_position-TOLERANCE >= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos) {
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-      }
-      //adjust rows and cols value
-      switch (walls.heading_) {
-        case North: //NORTH
-          walls.row -= 1;
-          break;
-        case East: //EAST
-          walls.col += 1;
-          break;
-        case South: //SOUTH
-          walls.row += 1;
-          break;
-        case West: //WEST
-          walls.col -= 1;
-          break;
-      }
-      ++it;
-    } else if (*it == 'L') {
-      leftMotor->setVelocity(0.4 * MAX_SPEED);
-      rightMotor->setVelocity(0.4 * MAX_SPEED);
-       
-      leftMotor->setPosition(l_position - ROTATE_STEP);
-      rightMotor->setPosition(r_position + ROTATE_STEP);
-      
-      l_position -= ROTATE_STEP;
-      r_position += ROTATE_STEP;
-      //read sesors to check position and walls  
-      while (l_position+TOLERANCE <= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos) {
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-      }
-      //adjust heading
-      switch (walls.heading_){
-        case (North):
-          walls.heading_ = West;
-          break;
-        case (East):
-          walls.heading_ = North;
-          break;
-        case (South):
-          walls.heading_ = East;
-          break;
-        case (West):
-          walls.heading_ = South;
-          break;
-      }
-      ++it;
-    } else if (*it == 'R') {
-      leftMotor->setVelocity(0.4 * MAX_SPEED);
-      rightMotor->setVelocity(0.4 * MAX_SPEED);
-       
-      leftMotor->setPosition(l_position + ROTATE_STEP);
-      rightMotor->setPosition(r_position - ROTATE_STEP);
-      
-      l_position += ROTATE_STEP;
-      r_position -= ROTATE_STEP;
-      //read sesors to check position and walls  
-      while (l_position-TOLERANCE >= l_encoder_pos && r_position+TOLERANCE <= r_encoder_pos){
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-      }
-      //adjust heading
-      switch (walls.heading_){
-        case North:
-          walls.heading_ = East;
-          break;
-        case East:
-          walls.heading_ = South;
-          break;
-        case South:
-          walls.heading_ = West;
-          break;
-        case West:
-          walls.heading_ = North;
-          break;
-      }
-      ++it;
+    
+    //adjust rows and cols value
+    switch (walls.heading_) {
+      case North: //NORTH
+        walls.row -= 1;
+        break;
+      case East: //EAST
+        walls.col += 1;
+        break;
+      case South: //SOUTH
+        walls.row += 1;
+        break;
+      case West: //WEST
+        walls.col -= 1;
+        break;
+    }
+  } else if (instruct == 'L') {
+    //rotate left
+    double left_target_pos = l_position - ROTATE_STEP;
+    double right_target_pos = r_position + ROTATE_STEP;
+    leftMotor->setVelocity(0.4 * MAX_SPEED);
+    rightMotor->setVelocity(0.4 * MAX_SPEED);
+    leftMotor->setPosition(left_target_pos);
+    rightMotor->setPosition(right_target_pos);
+    //read sesors to check position and walls  
+    while (left_target_pos+TOLERANCE <= left_en->getValue() && right_target_pos-TOLERANCE >= right_en->getValue()) {
+      robot->step(TIME_STEP);
+    }
+    //adjust heading
+    switch (walls.heading_){
+      case (North):
+        walls.heading_ = West;
+        break;
+      case (East):
+        walls.heading_ = North;
+        break;
+      case (South):
+        walls.heading_ = East;
+        break;
+      case (West):
+        walls.heading_ = South;
+        break;
+    }
+    
+  } else if (instruct == 'R') {
+    //rotate right
+    leftMotor->setVelocity(0.4 * MAX_SPEED);
+    rightMotor->setVelocity(0.4 * MAX_SPEED);
+     
+    leftMotor->setPosition(l_position + ROTATE_STEP);
+    rightMotor->setPosition(r_position - ROTATE_STEP);
+    
+    l_position += ROTATE_STEP;
+    r_position -= ROTATE_STEP;
+    //read sesors to check position and walls  
+    while (l_position-TOLERANCE >= l_encoder_pos && r_position+TOLERANCE <= r_encoder_pos){
+      robot->step(TIME_STEP);
+      l_encoder_pos = left_en->getValue();
+      r_encoder_pos = right_en->getValue();
+    }
+    //adjust heading
+    switch (walls.heading_){
+      case North:
+        walls.heading_ = East;
+        break;
+      case East:
+        walls.heading_ = South;
+        break;
+      case South:
+        walls.heading_ = West;
+        break;
+      case West:
+        walls.heading_ = North;
+        break;
     }
   }
+
 }

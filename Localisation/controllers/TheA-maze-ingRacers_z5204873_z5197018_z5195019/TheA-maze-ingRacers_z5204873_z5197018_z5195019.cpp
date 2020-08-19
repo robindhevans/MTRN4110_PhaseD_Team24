@@ -453,6 +453,7 @@ int main(int argc, char **argv) {
     else break 
   */
   string::iterator next_step = robot_instruct.begin();
+  bool current_path_destroyed = false;
   while (true) {
   //check to see if more than one path left
     if (paths.size() > 1) {
@@ -492,9 +493,13 @@ int main(int argc, char **argv) {
                    //walls match so push to paths
                   *it = temp_path;
                 } else {
+                  //check if current path is about to be destroyed
+                  if (temp_path[0] == current_path_id) {
+                    current_path_destroyed = true;
+                  }
                   //walls don't match so erase potential location
                   paths.erase(it);
-                  it = paths.begin();
+                  it = paths.begin(); //<<<<<<<<<
                 }
                 break;
               case East: //EAST
@@ -504,6 +509,9 @@ int main(int argc, char **argv) {
                 if(compare_walls(walls, r, c, map_walls) == true) {
                   *it = temp_path;
                 } else {
+                  if (temp_path[0] == current_path_id) {
+                    current_path_destroyed = true;
+                  }
                   paths.erase(it);
                   it = paths.begin();
                 }
@@ -515,6 +523,9 @@ int main(int argc, char **argv) {
                 if(compare_walls(walls, r, c, map_walls) == true) {
                   *it = temp_path;
                 } else {
+                  if (temp_path[0] == current_path_id) {
+                    current_path_destroyed = true;
+                  }
                   paths.erase(it);
                   it = paths.begin();
                 }
@@ -526,6 +537,9 @@ int main(int argc, char **argv) {
                 if(compare_walls(walls, r, c, map_walls) == true) {
                   *it = temp_path;
                 } else {
+                  if (temp_path[0] == current_path_id) {
+                    current_path_destroyed = true;
+                  }
                   paths.erase(it);
                   it = paths.begin();
                 }
@@ -568,10 +582,38 @@ int main(int argc, char **argv) {
         }
         //instruction finished. Remove from instruction string.
         robot_instruct.erase(next_step);
-        // relative position change??
-        for (auto& e : paths) {
-          *(e.end()) += abs(current_path_id - *next_step);
+        //Check if current path instructions are still valid
+        if (current_path_destroyed == true) {
+        
+          smallestflood = 45;
+          current_path_id = 0;
+          //find next smallest potential floodfill from current potential positions
+          for (vector<vector<int>>::iterator it = paths.begin(); it != paths.end(); it++) {
+            vector<int> temp_path = *it;
+            int origin_r = get_rc(temp_path.front(), 'r');
+            int origin_c = get_rc(temp_path.front(), 'c');
+            int r = get_rc(temp_path.back(), 'r');
+            int c = get_rc(temp_path.back(), 'c');
+            
+            if (origin_r != GOAL_ROW || origin_c != GOAL_COL) {
+              if (floodfill_matrix[r][c] < smallestflood) {
+                smallestflood = floodfill_matrix[r][c];
+                current_path_id = temp_path.front();
+              }
+            }
+          }
+          get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls);
+          for (auto& e : current_path) {
+          cout << e << ' ' << endl;
+          // path in e
+          }
+          robot_instruct = get_path_instruct(current_path_id, get_id(GOAL_ROW,GOAL_COL), my_heading, current_path, walls.hwalls, walls.vwalls);
+         
+          current_path_destroyed = false;
+          cout << "Current Path ID: " << current_path_id << endl;
+          cout << "New Instructions: " << robot_instruct << endl;
         }
+
         // print paths after adding relative position change
         for (auto& e : paths) {
           cout << "[";
@@ -592,7 +634,6 @@ int main(int argc, char **argv) {
   delete robot;
   
   return 0;
-
 }
 
 void checkWalls(robotsensors sensors, walldata &walls){  
@@ -879,6 +920,9 @@ bool compare_walls(walldata (&walls), int row, int col, walls_detected map_walls
 
 void get_short_path_from_id(int (&floodfill_matrix)[MAP_ROWS][MAP_COLS], int start_id, int goal_id, vector<int> (&temp_path), walldata (&walls)) {
   // grab the shortest path from a start id to goal id
+  if (!temp_path.empty()){
+    temp_path.clear();
+    }
   int cur_id = start_id;
   heading cur_heading = KNOWN_HEADING;
   int cur_flood = 0;

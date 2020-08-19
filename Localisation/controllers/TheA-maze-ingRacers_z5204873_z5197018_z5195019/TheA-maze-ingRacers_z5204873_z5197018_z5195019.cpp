@@ -175,24 +175,7 @@ int main(int argc, char **argv) {
       
     //Start forward instruction
     if (key == keyboard->UP) {
-      leftMotor->setVelocity(0.8 * MAX_SPEED);
-      rightMotor->setVelocity(0.8 * MAX_SPEED);
-        
-      leftMotor->setPosition(l_position + TILE_STEP);
-      rightMotor->setPosition(r_position + TILE_STEP);
-      
-      l_position += TILE_STEP;
-      r_position += TILE_STEP;
-      //read sesors to check position and walls  
-      while (l_position-TOLERANCE >= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos) {
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-        
-        FrontDis = sensors.front_ds->getValue();
-        RightDis = sensors.right_ds->getValue();
-        LeftDis = sensors.left_ds->getValue();
-      }
+      robot_follow_steps('F', robot, sensors, leftMotor, rightMotor, left_en, right_en);
       //adjust rows and cols value
       switch (walls.heading_) {
         case North: //NORTH
@@ -214,25 +197,7 @@ int main(int argc, char **argv) {
     
     //start left rotation instruction
     else if (key == keyboard->LEFT) {
-      leftMotor->setVelocity(0.4 * MAX_SPEED);
-      rightMotor->setVelocity(0.4 * MAX_SPEED);
-       
-      leftMotor->setPosition(l_position - ROTATE_STEP);
-      rightMotor->setPosition(r_position + ROTATE_STEP);
-      
-      l_position -= ROTATE_STEP;
-      r_position += ROTATE_STEP;
-      //read sesors to check position and walls  
-      while (l_position+TOLERANCE <= l_encoder_pos && r_position-TOLERANCE >= r_encoder_pos) {
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-        
-        FrontDis = sensors.front_ds->getValue();
-        RightDis = sensors.right_ds->getValue();
-        LeftDis = sensors.left_ds->getValue();
-
-      }
+      robot_follow_steps('L', robot, sensors, leftMotor, rightMotor, left_en, right_en);
       //adjust heading
       switch (walls.heading_){
         case (North):
@@ -254,24 +219,7 @@ int main(int argc, char **argv) {
     
     //start right rotate instruction
     else if (key == keyboard->RIGHT) {
-      leftMotor->setVelocity(0.4 * MAX_SPEED);
-      rightMotor->setVelocity(0.4 * MAX_SPEED);
-       
-      leftMotor->setPosition(l_position + ROTATE_STEP);
-      rightMotor->setPosition(r_position - ROTATE_STEP);
-      
-      l_position += ROTATE_STEP;
-      r_position -= ROTATE_STEP;
-      //read sesors to check position and walls  
-      while (l_position-TOLERANCE >= l_encoder_pos && r_position+TOLERANCE <= r_encoder_pos){
-        robot->step(TIME_STEP);
-        l_encoder_pos = left_en->getValue();
-        r_encoder_pos = right_en->getValue();
-        
-        FrontDis = sensors.front_ds->getValue();
-        RightDis = sensors.right_ds->getValue();
-        LeftDis = sensors.left_ds->getValue();
-      }
+      robot_follow_steps('R', robot, sensors, leftMotor, rightMotor, left_en, right_en);
       //adjust heading
       switch (walls.heading_){
         case North:
@@ -334,6 +282,7 @@ int main(int argc, char **argv) {
 
   
   // testing walls to skip exploration part
+  /*
   int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
                                          {0, 1, 0, 0, 0, 0, 1, 0, 0},
                                          {1, 0, 0, 0, 1, 1, 0, 1, 0},
@@ -345,6 +294,18 @@ int main(int argc, char **argv) {
                                          {1, 0, 1, 1, 1, 0, 0, 0, 0, 1},
                                          {1, 1, 0, 0, 0, 0, 1, 0, 0, 1},
                                          {1, 1, 0, 0, 1, 0, 0, 1, 0, 1}};
+                                         */
+  int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
+                                         {0, 0, 1, 0, 0, 1, 0, 0, 0},
+                                         {0, 1, 0, 0, 1, 0, 0, 0, 0},
+                                         {0, 1, 0, 0, 1, 0, 0, 0, 0},
+                                         {0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                         {1, 1, 1, 1, 1, 1, 1, 1, 1}};
+  int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+                                         {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
+                                         {1, 1, 0, 1, 1, 0, 1, 0, 0, 1},
+                                         {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
+                                         {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
   
   for (int i = 0; i < MAP_ROWS+1; ++i) {
     for (int j = 0; j < MAP_COLS; ++j) {
@@ -419,7 +380,7 @@ int main(int argc, char **argv) {
   //generate path from start closest to goal
   // NOTE: get_short_path_from_id DOES NOT GET PATH WITH LEAST TURNS
   get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls);
-  cout << "intial paths" << endl;
+  cout << "initial paths" << endl;
   for (auto& e : paths) {
     cout << "[";
     for (auto& f : e) {
@@ -427,6 +388,7 @@ int main(int argc, char **argv) {
     }
     cout << "]" << endl;
   }
+  cout << "current path ";
   for (auto& e : current_path) {
     cout << e << " ";
   }
@@ -459,24 +421,34 @@ int main(int argc, char **argv) {
   //check to see if more than one path left
     if (paths.size() > 1) {
       //check to see if at end of current path instructions
-      if(*next_step != '\0') {
+      if(next_step != robot_instruct.end()) {
         //get next instruction from current path
         next_step = robot_instruct.begin();
         //implement instruction
+        cout << "Turning ========= " << *next_step << endl;
+        robot->step(TIME_STEP);
         robot_follow_steps(*next_step, robot, sensors, leftMotor,
                            rightMotor, left_en, right_en);
+        robot->step(TIME_STEP);
+
         if (*next_step == 'F') {
+          cout << "entered here" << endl;
           //if robot has moved forward, check walls
           check_walls_loc(robot, sensors, robot_walls);
+          cout << "entered here2" << endl;
+
           cout <<"Robot Walls(FRBL): "<< robot_walls.N << robot_walls.E << robot_walls.S << robot_walls.W << endl;
           //put corresponding world reference walls into map_walls
           translate_NESW(my_heading, robot_walls, map_walls);
+            cout << "entered here3" << endl;
+
           cout <<"Map Walls(NESW): "<< map_walls.N << map_walls.E << map_walls.S << map_walls.W << endl;
           //update paths vector vectors (could be in a function for neatness)
           // each time loop goes through, the paths.end() gets reevaluated each time
           for (vector<vector<int>>::iterator it = paths.begin(); it != paths.end();) {
             //get path vector
             vector<int> temp_path = *it;
+            cout << "entered here4" << endl;
             //cout << temp_path[0] << endl;
             //get latest potential location
             int prev_cell_id = temp_path.back();
@@ -621,8 +593,7 @@ int main(int argc, char **argv) {
               my_heading = South;
               break;
           }
-        }
-        else if (*next_step == 'R') {
+        } else if (*next_step == 'R') {
           // a turn has occured. adjust heading.
           switch (my_heading){
             case (North):
@@ -1195,7 +1166,8 @@ void robot_follow_steps(char instruct, Robot* robot, robotsensors (&sensors),
   robot->step(TIME_STEP);
   double l_position = left_en->getValue();
   double r_position = right_en->getValue();
-  cout << "instruction" << instruct << endl;
+  
+  cout << "instruction = " << instruct << endl;
   if (instruct == 'F') {
     //move forward
     leftMotor->setVelocity(0.8 * MAX_SPEED);
@@ -1233,7 +1205,7 @@ void robot_follow_steps(char instruct, Robot* robot, robotsensors (&sensors),
     rightMotor->setPosition(right_target_pos);
 
     //read sesors to check position 
-    while (left_target_pos-TOLERANCE <= left_en->getValue() && right_target_pos+TOLERANCE >= right_en->getValue()) {
+    while (left_target_pos-TOLERANCE >= left_en->getValue() && right_target_pos+TOLERANCE <= right_en->getValue()) {
       robot->step(TIME_STEP);
     }
   }

@@ -76,6 +76,7 @@ struct walls_detected {
 //For exploration
 void checkWalls(robotsensors sensors, walldata &walls);
 void draw_map(walldata walls, Display *displays);
+void draw_progress(walldata walls, Display *displays);
 
 //For localisation
 void translate_NESW(heading my_heading, walls_detected (&robot_walls), walls_detected (&map_walls));
@@ -99,15 +100,15 @@ int main(int argc, char **argv) {
   walldata walls;
   robotsensors sensors;
   
-  //Initialise arrays to all 1's
+  //Initialise arrays to all 2's represent unknown walls
   for(int x = 0; x < MAP_COLS; x++){
     for(int y = 0; y < MAP_ROWS+1; y++){
-      walls.hwalls[y][x] = 1;
+      walls.hwalls[y][x] = 2;
     }
   } 
   for(int x = 0; x < MAP_COLS+1; x++){
     for(int y = 0; y < MAP_ROWS; y++){
-      walls.vwalls[y][x] = 1;
+      walls.vwalls[y][x] = 2;
     }
   } 
   
@@ -151,7 +152,6 @@ int main(int argc, char **argv) {
   
   Keyboard *keyboard = robot->getKeyboard();
   Display *display = robot->getDisplay("display");
-  display->setFont("Arial", 30 , 1);
   cout << "Display width: " << display->getWidth() << " - height: " << display->getHeight() << endl;
 
   sensors.front_ds = robot->getDistanceSensor("F_DS");
@@ -185,6 +185,7 @@ int main(int argc, char **argv) {
   
   checkWalls(sensors, walls);
   draw_map(walls, display);
+  draw_progress(walls, display);
   
   while (robot->step(TIME_STEP) != -1) {
   
@@ -265,6 +266,7 @@ int main(int argc, char **argv) {
       //print step information
       checkWalls(sensors, walls);
       draw_map(walls, display);
+      draw_progress(walls, display);
       cout << "Horizontal wall array" << endl;
       for(int y = 0; y < MAP_ROWS+1; y++){
         for(int x = 0; x < MAP_COLS; x++){
@@ -749,57 +751,73 @@ void checkWalls(robotsensors sensors, walldata &walls){
   if (walls.heading_ == North){ //NORTH
     if(sensors.front_ds->getValue() < 0.85){
       walls.hwalls[walls.row][walls.col] = 0;
+    } else { walls.hwalls[walls.row][walls.col] = 1;
     }
     if(sensors.right_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col+1] = 0;
+    } else { walls.vwalls[walls.row][walls.col+1] = 1;
     }
     if(sensors.back_ds->getValue() < 0.85){
       walls.hwalls[walls.row+1][walls.col] = 0;
+    }else { walls.hwalls[walls.row+1][walls.col] = 1;
     }
     if(sensors.left_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col] = 0;
+    }else { walls.vwalls[walls.row][walls.col] = 1;
     }
   }   
   if (walls.heading_ == East){ //EAST
     if(sensors.front_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col+1] = 0;
+    } else  {walls.vwalls[walls.row][walls.col+1] = 1;
     }
     if(sensors.right_ds->getValue() < 0.85){
       walls.hwalls[walls.row+1][walls.col] = 0;
+    } else {walls.hwalls[walls.row+1][walls.col] = 1;
     }
     if(sensors.back_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col] = 0;
+    } else {walls.vwalls[walls.row][walls.col] = 1;
     }
     if(sensors.left_ds->getValue() < 0.85){
       walls.hwalls[walls.row][walls.col] = 0; 
+    } else {walls.hwalls[walls.row][walls.col] = 1;
     }
   }   
   if (walls.heading_ == South){ //SOUTH
     if(sensors.front_ds->getValue() < 0.85){
       walls.hwalls[walls.row+1][walls.col] = 0;
+    } else { walls.hwalls[walls.row+1][walls.col] = 1;
     }
     if(sensors.right_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col] = 0;
+    }else { walls.vwalls[walls.row][walls.col] = 1;
     }
     if(sensors.back_ds->getValue() < 0.85){
       walls.hwalls[walls.row][walls.col] = 0;
+    }else { walls.hwalls[walls.row][walls.col] = 1;
     }
     if(sensors.left_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col+1] = 0;      
+    }else { walls.vwalls[walls.row][walls.col+1] = 1;
     }
   }
   if (walls.heading_ == West){ //WEST    
     if(sensors.front_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col] = 0;
+    } else {walls.vwalls[walls.row][walls.col] = 1;
     }
     if(sensors.right_ds->getValue() < 0.85){
       walls.hwalls[walls.row][walls.col] = 0;
+    }else {walls.hwalls[walls.row][walls.col] = 1;
     }
     if(sensors.back_ds->getValue() < 0.85){
       walls.vwalls[walls.row][walls.col+1] = 0;
+    }else {walls.vwalls[walls.row][walls.col+1] = 1;
     }
     if(sensors.left_ds->getValue() < 0.85){
       walls.hwalls[walls.row+1][walls.col] = 0;     
+    }else {walls.hwalls[walls.row+1][walls.col] = 1;  
     }
   } 
 }
@@ -809,35 +827,46 @@ void draw_map(walldata walls, Display *display) {
   //clear display
   display->setAlpha(0);
   display->fillRectangle(0,0,500,300);
-  //set up outisde borders
-  display->setAlpha(1);
+
+
  
 //insert walls
   display->setColor(0xba25b0);
   //draw horizontal walls
   for(int x = 0; x < MAP_COLS; x++){
     for(int y = 1; y < MAP_ROWS; y++){
-      if(walls.hwalls[y][x] == 1){
-        int xcoord = DISP_COR_OFFSET + (x*DISP_CELL_STEP);
-        int ycoord = DISP_COR_OFFSET + (y*DISP_CELL_STEP);
-        display->drawLine(xcoord, ycoord, xcoord+DISP_CELL_STEP, ycoord);
+      if(walls.hwalls[y][x] == 0){
+        display->setAlpha(0);
+      }else if(walls.hwalls[y][x] == 1){
+        display->setAlpha(1);
+      }else {
+        display->setAlpha(0.5);
       }
+      int xcoord = DISP_COR_OFFSET + (x*DISP_CELL_STEP);
+      int ycoord = DISP_COR_OFFSET + (y*DISP_CELL_STEP);
+      display->drawLine(xcoord, ycoord, xcoord+DISP_CELL_STEP, ycoord);
     }
   } 
   //draw vertical walls
   for(int x = 1; x < MAP_COLS; x++){
     for(int y = 0; y < MAP_ROWS; y++){
-      if(walls.vwalls[y][x] == 1){
-        int xcoord = DISP_COR_OFFSET + (x*DISP_CELL_STEP);
-        int ycoord = DISP_COR_OFFSET + (y*DISP_CELL_STEP);
-        display->drawLine(xcoord, ycoord, xcoord, ycoord+DISP_CELL_STEP);
+      if(walls.vwalls[y][x] == 0){
+        display->setAlpha(0);
+      }else if(walls.vwalls[y][x] == 1){
+        display->setAlpha(1);
+      }else {
+        display->setAlpha(0.5);
       }
+      int xcoord = DISP_COR_OFFSET + (x*DISP_CELL_STEP);
+      int ycoord = DISP_COR_OFFSET + (y*DISP_CELL_STEP);
+      display->drawLine(xcoord, ycoord, xcoord, ycoord+DISP_CELL_STEP);
     }
   } 
   
   int rowpos = DISP_COR_OFFSET + (walls.row * DISP_CELL_STEP);
   int colpos = DISP_COR_OFFSET + (walls.col * DISP_CELL_STEP)+15;
-  
+  display->setAlpha(1);
+  display->setFont("Arial", 30 , 1);
   switch (walls.heading_){
     case 0: //NORTH
       display->drawText("^", colpos, rowpos+18);
@@ -855,8 +884,40 @@ void draw_map(walldata walls, Display *display) {
   
   display->setColor(0x1f9e1f);
   display->drawRectangle(DISP_COR_OFFSET,DISP_COR_OFFSET,DISP_WIDTH+2,DISP_HEIGHT+2);
-  }
+}
 
+void draw_progress(walldata walls, Display *display){
+  int Vsum = 0;
+  int Hsum = 0;
+  for(int x = 1; x < MAP_COLS; x++){
+    for(int y = 0; y < MAP_ROWS; y++){
+      if(walls.vwalls[y][x] != 2){
+        Vsum++;
+      }
+    }
+  }
+  for(int x = 0; x < MAP_COLS; x++){
+    for(int y = 1; y < MAP_ROWS; y++){
+      if(walls.hwalls[y][x] != 2){
+        Hsum++;
+      }
+    }
+  }
+  
+  //display->setAlpha(0);
+  //display->fillRectangle(70,240,405,265);
+  
+  float fraction = ((Vsum+Hsum)/76.0);
+  cout<<fraction<<endl;
+  display->setAlpha(1);
+  display->setColor(0xbd0000);
+  display->drawRectangle(105, 290, 295, 25);
+  int progress = (295*fraction);
+  display->fillRectangle(105, 290, progress, 25);
+  display->setFont("Arial", 10 , 1);
+  display->setColor(0xFFFFFF);
+  display->drawText("PROGRESS", 212,297);
+}
 
 void translate_NESW(heading my_heading, walls_detected (&robot_walls), walls_detected (&map_walls)) {
   //translates wall locations from robot reference frame to map reference frame

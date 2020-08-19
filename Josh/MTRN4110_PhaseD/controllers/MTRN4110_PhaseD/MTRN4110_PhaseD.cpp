@@ -11,7 +11,6 @@
 #include <iostream>
 #define MAP_TEXT_COLS 37
 #define MAP_TEXT_ROWS 11
-#define MAP_FILE_NAME "../../Map.txt"
 
 //using namespace webots;
 using namespace std;

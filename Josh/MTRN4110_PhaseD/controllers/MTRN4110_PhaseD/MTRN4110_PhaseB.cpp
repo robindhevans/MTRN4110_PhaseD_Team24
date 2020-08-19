@@ -71,13 +71,38 @@ int MTRN4110_PhaseB(char maptext[][MAP_TEXT_COLS], char pathPlan[]) {
   int rowwall = 0;
   int colwall = 0;
   
-  
+  /*//copy maptext argument to struct. 
   for(int i = 0; i < MAP_TEXT_ROWS; i++){
     for(int j = 0; i < MAP_TEXT_COLS;i++){
       map.text[i][j] = maptext[i][j];
     }
   }
+*/
 
+  //open file and check for success
+  ifstream mapinput;
+  mapinput.open(MAP_FILE_NAME, ios::in);
+  if (!mapinput.is_open()) {
+    cout << "Failed to open map" << endl;
+    cout << "Exiting Controller..." << endl;
+    exit(EXIT_FAILURE);
+  } 
+  
+  cout << "--- Task 1 ---" << endl;
+  //buffer for copying and index
+  int line = 0;
+  char buffer[MAP_TEXT_COLS];
+  while(mapinput.getline(buffer,50)){
+    //print to console
+    cout << buffer << endl;
+    //copy to map array
+    int j = 0;
+    while(j < MAP_TEXT_COLS){
+      map.text[line][j] = buffer[j];
+      j++;
+    }
+    line++;
+  }
   
   cout << "--- Task 2 ---" << endl;
   
@@ -231,7 +256,7 @@ int MTRN4110_PhaseB(char maptext[][MAP_TEXT_COLS], char pathPlan[]) {
   }
   cout << endl;
   cout << "--- Task 4 ---" << endl;
-  
+  /*
   //open and clear file
   ofstream pathfile(PATH_OUTPUT, ofstream::out);
   //print to text file;
@@ -254,7 +279,7 @@ int MTRN4110_PhaseB(char maptext[][MAP_TEXT_COLS], char pathPlan[]) {
   pathfile << endl;
   cout << endl;
    
-  pathfile.close();
+  pathfile.close();*/
   return 0;
 }
 

@@ -3,6 +3,7 @@
 // with alterations and additions from:
 //             - Robin Evans (z5197018)
 //             - Dean So (z5204873)
+//             - Joshua Purnell (z5195019)
 
 #include <webots/Robot.hpp>
 // Added a new include file
@@ -418,7 +419,7 @@ int main(int argc, char **argv) {
   //generate path from start closest to goal
   // NOTE: get_short_path_from_id DOES NOT GET PATH WITH LEAST TURNS
   get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls);
-
+  cout << "intial paths" << endl;
   for (auto& e : paths) {
     cout << "[";
     for (auto& f : e) {
@@ -431,9 +432,9 @@ int main(int argc, char **argv) {
   }
   cout << endl;
   //generate instructions
-  cout << current_path_id << endl;
+  cout << "current_path_id " << current_path_id << endl;
   string robot_instruct = get_path_instruct(current_path_id, get_id(GOAL_ROW,GOAL_COL), my_heading, current_path, walls.hwalls, walls.vwalls);
-  cout << robot_instruct << endl;
+  cout << "intial instructions: " << robot_instruct << endl;
   // robot_follow_steps(robot_instruct, robot, sensors, walls, leftMotor,
   //                    rightMotor, left_en, right_en, l_position, r_position, 
   //                    l_encoder_pos, r_encoder_pos);
@@ -472,16 +473,19 @@ int main(int argc, char **argv) {
           translate_NESW(my_heading, robot_walls, map_walls);
           cout <<"Map Walls(NESW): "<< map_walls.N << map_walls.E << map_walls.S << map_walls.W << endl;
           //update paths vector vectors (could be in a function for neatness)
-          for (vector<vector<int>>::iterator it = paths.begin(); it != paths.end(); it++) {
+          // each time loop goes through, the paths.end() gets reevaluated each time
+          for (vector<vector<int>>::iterator it = paths.begin(); it != paths.end();) {
             //get path vector
             vector<int> temp_path = *it;
             //cout << temp_path[0] << endl;
             //get latest potential location
             int prev_cell_id = temp_path.back();
+            cout << "prev_cell_id = " << prev_cell_id << endl;
             int r = 0;
             int c = 0;
             switch (my_heading) {
               case North: //NORTH
+                cout << "North" << endl;
                 //insert new id to path relative to last id based on heading
                 temp_path.push_back(prev_cell_id-9);
                 //get row/cols of potential location id (the following could be function
@@ -492,56 +496,111 @@ int main(int argc, char **argv) {
                 if(compare_walls(walls, r, c, map_walls) == true) {
                    //walls match so push to paths
                   *it = temp_path;
+                  ++it;
                 } else {
                   //check if current path is about to be destroyed
                   if (temp_path[0] == current_path_id) {
                     current_path_destroyed = true;
                   }
-                  //walls don't match so erase potential location
-                  paths.erase(it);
-                  it = paths.begin(); //<<<<<<<<<
+                  for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                  if ((it = paths.erase(it)) == paths.end()) {
+                    for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                    break;
+                  } 
+                  for (auto& e : *it) {
+                    cout << e << endl;
+                  } 
                 }
                 break;
               case East: //EAST
+                cout << "East" << endl;
                 temp_path.push_back(prev_cell_id+1);
                 r = get_rc(temp_path.back(), 'r');
                 c = get_rc(temp_path.back(), 'c');
                 if(compare_walls(walls, r, c, map_walls) == true) {
                   *it = temp_path;
+                  ++it;
                 } else {
                   if (temp_path[0] == current_path_id) {
                     current_path_destroyed = true;
                   }
-                  paths.erase(it);
-                  it = paths.begin();
+                  for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                  if ((it = paths.erase(it)) == paths.end()) {
+                    for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                    break;
+                  } 
+                  for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                  //it = paths.begin();
+                  
+                }
+                for (auto& e : paths) {
+                  cout << "[";
+                  for (auto& f : e) {
+                    std::cout << f << ' ';
+                  }
+                  cout << "]" << endl;
                 }
                 break;
               case South: //SOUTH
+                cout << "South" << endl;
                 temp_path.push_back(prev_cell_id+9);
                 r = get_rc(temp_path.back(), 'r');
                 c = get_rc(temp_path.back(), 'c');
                 if(compare_walls(walls, r, c, map_walls) == true) {
                   *it = temp_path;
+                  ++it;
                 } else {
                   if (temp_path[0] == current_path_id) {
                     current_path_destroyed = true;
                   }
-                  paths.erase(it);
-                  it = paths.begin();
+                  for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                  if ((it = paths.erase(it)) == paths.end()) {
+                    for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                    break;
+                  } 
+                  for (auto& e : *it) {
+                    cout << e << endl;
+                  }
                 }
                 break;
               case West: //WEST
+                cout << "West" << endl;
                 temp_path.push_back(prev_cell_id-1);
                 r = get_rc(temp_path.back(), 'r');
                 c = get_rc(temp_path.back(), 'c');
                 if(compare_walls(walls, r, c, map_walls) == true) {
                   *it = temp_path;
+                  ++it;
                 } else {
                   if (temp_path[0] == current_path_id) {
                     current_path_destroyed = true;
                   }
-                  paths.erase(it);
-                  it = paths.begin();
+                  for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                  if ((it = paths.erase(it)) == paths.end()) {
+                    for (auto& e : *it) {
+                    cout << e << endl;
+                  }
+                    break;
+                  } 
+                  for (auto& e : *it) {
+                    cout << e << endl;
+                  }
                 }
                 break;
             }
@@ -587,6 +646,7 @@ int main(int argc, char **argv) {
         
           smallestflood = 45;
           current_path_id = 0;
+          // grab new shortest path from END of a NON GOAL ending path -> GOAL
           //find next smallest potential floodfill from current potential positions
           for (vector<vector<int>>::iterator it = paths.begin(); it != paths.end(); it++) {
             vector<int> temp_path = *it;
@@ -598,15 +658,16 @@ int main(int argc, char **argv) {
             if (origin_r != GOAL_ROW || origin_c != GOAL_COL) {
               if (floodfill_matrix[r][c] < smallestflood) {
                 smallestflood = floodfill_matrix[r][c];
-                current_path_id = temp_path.front();
+                current_path_id = temp_path.back();
               }
             }
           }
-          get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls);
+          get_short_path_from_id(floodfill_matrix, current_path_id, get_id(GOAL_ROW, GOAL_COL), current_path, walls); 
           for (auto& e : current_path) {
-          cout << e << ' ' << endl;
-          // path in e
+            cout << e << ' ';
+            // path in e
           }
+          cout << endl;
           robot_instruct = get_path_instruct(current_path_id, get_id(GOAL_ROW,GOAL_COL), my_heading, current_path, walls.hwalls, walls.vwalls);
          
           current_path_destroyed = false;
@@ -614,19 +675,24 @@ int main(int argc, char **argv) {
           cout << "New Instructions: " << robot_instruct << endl;
         }
 
-        // print paths after adding relative position change
-        for (auto& e : paths) {
-          cout << "[";
-          for (auto& f : e) {
-              std::cout << f << ' ';
+        // print paths
+          for (auto& e : paths) {
+            cout << "[";
+            for (auto& f : e) {
+                std::cout << f << ' ';
+            }
+            cout << "]" << endl;
           }
-          cout << "]" << endl;
-        }
-        for (auto& e : paths) {
-          // path in e
-        }
       }
     } else {
+      for (auto& e : paths) {
+            cout << "[";
+            for (auto& f : e) {
+                std::cout << f << ' ';
+            }
+            cout << "]" << endl;
+          }
+      cout << "ROBOT INITIAL LOCATION WAS : [" << get_rc(paths[0][0], 'r') << ", " << get_rc(paths[0][0], 'c') << "]" << endl;
       break;
     }
   }
@@ -1121,7 +1187,7 @@ heading dir_trans(heading dir_num, int dir_dif) {
     return static_cast<heading>(new_dir);
 }
 
-// moves robot by following the instruct string 
+// moves robot by following the instruct char
 void robot_follow_steps(char instruct, Robot* robot, robotsensors (&sensors), 
                         Motor* leftMotor, Motor* rightMotor, 
                         PositionSensor *left_en, PositionSensor *right_en) {
@@ -1163,7 +1229,6 @@ void robot_follow_steps(char instruct, Robot* robot, robotsensors (&sensors),
     double right_target_pos = r_position - ROTATE_STEP;
     leftMotor->setVelocity(0.4 * MAX_SPEED);
     rightMotor->setVelocity(0.4 * MAX_SPEED);
-     
     leftMotor->setPosition(left_target_pos);
     rightMotor->setPosition(right_target_pos);
 

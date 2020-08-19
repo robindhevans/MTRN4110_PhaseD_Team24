@@ -27,6 +27,7 @@
 //tile width divided by radius
 #define TOLERANCE 0.005
 #define get_path_instruct_FILE_NAME "../../PathPlan.txt"
+#define MAP_FILE_NAME "../../Map.txt"
 #define DISP_COR_OFFSET 25
 #define DISP_CELL_STEP 50
 #define DISP_WIDTH 450
@@ -36,7 +37,8 @@
 #define GOAL_ROW MAP_ROWS/2
 #define GOAL_COL MAP_COLS/2
 #define KNOWN_HEADING South
-
+#define HORIZONTAL_WALL "---"
+#define VERTICAL_WALL "|"
 // All the webots classes are defined in the "webots" namespace
 using namespace webots;
 using namespace std;
@@ -91,7 +93,8 @@ heading dir_trans(heading dir_num, int dir_dif);
 void robot_follow_steps(char instruct, Robot* robot, robotsensors (&sensors), 
                         Motor* leftMotor, Motor* rightMotor, 
                         PositionSensor *left_en, PositionSensor *right_en);
-
+void draw_potentials(walldata walls, Display *display, vector<vector<int>> potentials, bool found_state);
+void scan_wall_values(walldata (&walls), std::vector<std::string> map);
 int main(int argc, char **argv) {
   walldata walls;
   robotsensors sensors;
@@ -108,6 +111,19 @@ int main(int argc, char **argv) {
     }
   } 
   
+  std::string line;
+  std::vector<std::string> map;
+  std::ifstream map_txt (MAP_FILE_NAME);
+  
+  if (map_txt.is_open()) {
+    while (getline(map_txt, line)) {
+      map.push_back(line);
+    }
+    map_txt.close();
+  } else {
+    std::cout << "Unable to open file" << std::endl;
+  }
+
   double l_position = 0.0;
   double r_position = 0.0;
   
@@ -118,6 +134,8 @@ int main(int argc, char **argv) {
   double RightDis = 0.0;
   double LeftDis = 0.0;
   
+  bool force_exit_exploration = false;
+
   //initialise robot position
   walls.row = 0;
   walls.col = 0;
@@ -239,6 +257,7 @@ int main(int argc, char **argv) {
     } else if (key == keyboard->END) {
       // manual skip to end but robot should exit when the 
       // entire maze has been explored under normal operation
+      force_exit_exploration = true;
       break;
     }
     
@@ -283,40 +302,45 @@ int main(int argc, char **argv) {
   
   // testing walls to skip exploration part
   // original world
-  int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
-                                         {0, 1, 0, 0, 0, 0, 1, 0, 0},
-                                         {1, 0, 0, 0, 1, 1, 0, 1, 0},
-                                         {0, 0, 1, 0, 1, 1, 1, 0, 0},
-                                         {0, 0, 1, 0, 0, 1, 0, 1, 0},
-                                         {1, 1, 1, 1, 1, 1, 1, 1, 1}};
-  int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 
-                                         {1, 0, 0, 1, 0, 0, 1, 1, 0, 1},
-                                         {1, 0, 1, 1, 1, 0, 0, 0, 0, 1},
-                                         {1, 1, 0, 0, 0, 0, 1, 0, 0, 1},
-                                         {1, 1, 0, 0, 1, 0, 0, 1, 0, 1}};
-  // testworld1            
-  // int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
-  //                                        {0, 0, 1, 0, 0, 1, 0, 0, 0},
-  //                                        {0, 1, 0, 0, 1, 0, 0, 0, 0},
-  //                                        {0, 1, 0, 0, 1, 0, 0, 0, 0},
-  //                                        {0, 0, 0, 0, 0, 0, 0, 0, 0},
-  //                                        {1, 1, 1, 1, 1, 1, 1, 1, 1}};
-  // int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
-  //                                        {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
-  //                                        {1, 1, 0, 1, 1, 0, 1, 0, 0, 1},
-  //                                        {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
-  //                                        {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+  if (force_exit_exploration == true) {
+    // hardcoded walls for skipping exploration part OR use map.txt and read
+    // using scan wall values
+    scan_wall_values(walls, map);
+    // int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
+    //                                     {0, 1, 0, 0, 0, 0, 1, 0, 0},
+    //                                     {1, 0, 0, 0, 1, 1, 0, 1, 0},
+    //                                     {0, 0, 1, 0, 1, 1, 1, 0, 0},
+    //                                     {0, 0, 1, 0, 0, 1, 0, 1, 0},
+    //                                     {1, 1, 1, 1, 1, 1, 1, 1, 1}};
+    // int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 
+    //                                       {1, 0, 0, 1, 0, 0, 1, 1, 0, 1},
+    //                                       {1, 0, 1, 1, 1, 0, 0, 0, 0, 1},
+    //                                       {1, 1, 0, 0, 0, 0, 1, 0, 0, 1},
+    //                                       {1, 1, 0, 0, 1, 0, 0, 1, 0, 1}};
+    // testworld1            
+    // int temphwall[MAP_ROWS+1][MAP_COLS] = {{1, 1, 1, 1, 1, 1, 1, 1, 1},
+    //                                       {0, 0, 1, 0, 0, 1, 0, 0, 0},
+    //                                       {0, 1, 0, 0, 1, 0, 0, 0, 0},
+    //                                       {0, 1, 0, 0, 1, 0, 0, 0, 0},
+    //                                       {0, 0, 0, 0, 0, 0, 0, 0, 0},
+    //                                       {1, 1, 1, 1, 1, 1, 1, 1, 1}};
+    // int tempvwall[MAP_ROWS][MAP_COLS+1] = {{1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+    //                                       {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
+    //                                       {1, 1, 0, 1, 1, 0, 1, 0, 0, 1},
+    //                                       {1, 0, 1, 1, 0, 1, 1, 0, 0, 1},
+    //                                       {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+    // for (int i = 0; i < MAP_ROWS+1; ++i) {
+    //   for (int j = 0; j < MAP_COLS; ++j) {
+    //     walls.hwalls[i][j] = temphwall[i][j];
+    //   }
+    // }
+    // for (int i = 0; i < MAP_ROWS; ++i) {
+    //   for (int j = 0; j < MAP_COLS+1; ++j) {
+    //     walls.vwalls[i][j] = tempvwall[i][j];
+    //   }
+    // }
+  }
   
-  for (int i = 0; i < MAP_ROWS+1; ++i) {
-    for (int j = 0; j < MAP_COLS; ++j) {
-      walls.hwalls[i][j] = temphwall[i][j];
-    }
-  }
-  for (int i = 0; i < MAP_ROWS; ++i) {
-    for (int j = 0; j < MAP_COLS+1; ++j) {
-      walls.vwalls[i][j] = tempvwall[i][j];
-    }
-  }
   
   floodfill_matrix[GOAL_ROW][GOAL_COL] = 0;
   for (auto& e : walls.hwalls) {
@@ -415,6 +439,7 @@ int main(int argc, char **argv) {
         Cur_path: generate new shortest path from end of a non goal ending path to goal 
     else break 
   */
+  bool found_state = false;
   string::iterator next_step = robot_instruct.begin();
   bool current_path_destroyed = false;
   while (true) {
@@ -684,6 +709,8 @@ int main(int argc, char **argv) {
 
       }
     } else {
+      found_state = true;
+      draw_potentials(walls, display, paths, found_state);
       cout << "Robot Localised!!" << endl;
       cout << "ROBOT INITIAL LOCATION WAS : [" << get_rc(paths[0][0], 'r') << ", " << get_rc(paths[0][0], 'c') << "]" << endl;
       cout << "heading = " << my_heading << endl;
@@ -705,6 +732,7 @@ int main(int argc, char **argv) {
       cout << "Goal reached!!!" << endl;
       break;
     }
+    draw_potentials(walls, display, paths, found_state);
   }
   
   delete robot;
@@ -1248,4 +1276,104 @@ void robot_follow_steps(char instruct, Robot* robot, robotsensors (&sensors),
       robot->step(TIME_STEP);
     }
   }
+}
+
+void draw_potentials(walldata walls, Display *display, vector<vector<int>> potentials, bool found_state) {
+
+//clear display
+display->setAlpha(0);
+display->fillRectangle(0,0,500,300);
+//set up outisde borders
+display->setAlpha(1);
+ 
+//insert walls
+  display->setColor(0xba25b0);
+  //draw horizontal walls
+  for(int x = 0; x < MAP_COLS; x++){
+    for(int y = 1; y < MAP_ROWS; y++){
+      if(walls.hwalls[y][x] == 1){
+        int xcoord = DISP_COR_OFFSET + (x*DISP_CELL_STEP);
+        int ycoord = DISP_COR_OFFSET + (y*DISP_CELL_STEP);
+        display->drawLine(xcoord, ycoord, xcoord+DISP_CELL_STEP, ycoord);
+      }
+    }
+  } 
+  //draw vertical walls
+  for(int x = 1; x < MAP_COLS; x++){
+    for(int y = 0; y < MAP_ROWS; y++){
+      if(walls.vwalls[y][x] == 1){
+        int xcoord = DISP_COR_OFFSET + (x*DISP_CELL_STEP);
+        int ycoord = DISP_COR_OFFSET + (y*DISP_CELL_STEP);
+        display->drawLine(xcoord, ycoord, xcoord, ycoord+DISP_CELL_STEP);
+      }
+    }
+  } 
+  display->setColor(0x0baaff);
+  if (found_state == true) {
+    int rowpos = DISP_COR_OFFSET + (get_rc(potentials[0][0], 'r') * DISP_CELL_STEP);
+    int colpos = DISP_COR_OFFSET + (get_rc(potentials[0][0], 'c') * DISP_CELL_STEP)+15;
+    display->drawText("O", colpos, rowpos+8);
+  } else {
+    for (auto& e : potentials) {
+      for (auto& f : e) {
+        int rowpos = DISP_COR_OFFSET + (get_rc(f, 'r') * DISP_CELL_STEP);
+        int colpos = DISP_COR_OFFSET + (get_rc(f, 'c') * DISP_CELL_STEP)+15;
+        display->drawText("O", colpos, rowpos+8);
+        }
+      }
+    }
+  
+
+  
+  
+    display->setColor(0x1f9e1f);
+    display->drawRectangle(DISP_COR_OFFSET,DISP_COR_OFFSET,DISP_WIDTH+2,DISP_HEIGHT+2);
+  }
+
+  void scan_wall_values(walldata (&walls), std::vector<std::string> map) {
+    
+    int i = 0;
+    // grab the sizes of walls in the map
+    std::string hor_wall = HORIZONTAL_WALL;
+    std::string ver_wall = VERTICAL_WALL;
+    int hor_wall_size = hor_wall.length()/sizeof(char);
+    int ver_wall_size = ver_wall.length()/sizeof(char);
+    
+    for (auto x = map.begin(); x != map.end(); ++x) {
+        if (i % 2 == 0) {
+            // scan for hWall
+            for (size_t j = 0; j < 4*MAP_COLS; j += 4) {
+                  //std::cout << "j is " << j << std::endl;
+                  //std::cout << "string is " << *x << std::endl;
+                  auto check = (*x).find(HORIZONTAL_WALL, j, hor_wall_size);
+                  //std::cout << "check is " << check << std::endl;
+                  if (check != std::string::npos && check == j+1) {
+                      // wall present
+                      walls.hwalls[i/2][j/4] = 1;
+                  } else {
+                      // wall not present
+                      walls.hwalls[i/2][j/4] = 0;
+                  }
+            } 
+        } else {
+            // scan for vWall
+            for (size_t j = 0; j < 4*MAP_COLS + 1; j += 4) {
+                  //std::cout << "j is " << j << std::endl;
+                  //std::cout << "string is " << *x << std::endl;
+                  auto check = (*x).find(VERTICAL_WALL, j, ver_wall_size);
+                  //std::cout << "check is " << check << std::endl;
+                  if (check != std::string::npos && check == j) {
+                      // wall present
+                      walls.vwalls[i/2][j/4] = 1;
+                  } else {
+                      // wall not present
+                      walls.vwalls[i/2][j/4] = 0;
+                  }
+             }
+             
+        }
+        
+        ++i;
+        
+    }
 }

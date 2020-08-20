@@ -20,7 +20,7 @@
 
 // definitions
 #define PATH_PLAN_FILE_NAME "../../PathPlan.txt"
-#define SPEED 6.28*0.3
+#define SPEED 6.28*0.4
 #define FORWARD_SPEED 6.28
 #define PI 3.14158
 #define POSITION_STEP_LINEAR 165.0/20.0
@@ -36,6 +36,11 @@ bool heading_almost_equal_edge(double heading_ang, double angle);
 bool heading_almost_equal(double heading_ang, double angle);
 std::vector<int> update_row_col(std::vector<int> rc_pos, char heading);
 char update_heading(char heading, char turn);
+void forward(Robot* robot, double &right_pos, double &left_pos, double &right_vel, 
+             double &left_vel, Motor* right_motor, Motor* left_motor, 
+             bool &forward_state, double forward_time, double &prev_time, 
+             std::vector<int> (&rc_pos), std::string::iterator (&path_it), 
+             int &step, char &heading);
 
 int main(int argc, char **argv) {
     // create the Robot instance.
@@ -190,9 +195,9 @@ int main(int argc, char **argv) {
         
         // print sensor information
         
-        std::cout << "roll: " << imu_data[0]
-        << " yaw: " << imu_data[1]
-        << " pitch: " << imu_data[2] << std::endl;
+        // std::cout << "roll: " << imu_data[0]
+        // << " yaw: " << imu_data[1]
+        // << " pitch: " << imu_data[2] << std::endl;
         
         // std::cout << "dsF: " << dsF_vals << " ";
         // std::cout << "dsL: " << dsL_vals << " ";
@@ -233,24 +238,7 @@ int main(int argc, char **argv) {
                 display_state = false;
             }
         } else if (*path_it == 'F') {
-            // go forward
-            if (forward_state == false) {
-                prev_time = robot->getTime();
-                //std::cout << "old : " << old << std::endl;
-                forward_state = true;
-            }
-            if (robot->getTime() < prev_time + forward_time) {
-                left_pos += POSITION_STEP_LINEAR;
-                right_pos += POSITION_STEP_LINEAR;
-            } else {
-                rc_pos = update_row_col(rc_pos, heading);
-                ++path_it;
-                ++step;
-                forward_state = false;
-            }
-            // move faster on a forward to save time
-            left_vel = FORWARD_SPEED;
-            right_vel = FORWARD_SPEED;
+            forward(robot, right_pos, left_pos, right_vel, left_vel, rightMotor, leftMotor, forward_state, forward_time, prev_time, rc_pos, path_it, step, heading);
         } else if (*path_it == 'L') {
             // turn left
             if (left_state == false) {
@@ -258,7 +246,7 @@ int main(int argc, char **argv) {
                 left_state = true;
             }
             // gyroscopic angle the robot intends to turn to
-            std::cout << "LHEADING: " << heading_ang << std::endl;
+            //std::cout << "LHEADING: " << heading_ang << std::endl;
             // check if heading_ang is PI or -PI
             // on the edge cases of gyroscope
             if (heading_almost_equal_edge(heading_ang, PI)) {
@@ -272,8 +260,14 @@ int main(int argc, char **argv) {
                     ++step;
                     left_state = false;
                 } else {
-                    left_pos -= POSITION_STEP_ROTATION;
-                    right_pos += POSITION_STEP_ROTATION;
+                    double turn_off = 0.5;
+                    double scale1 = exp(abs(imu_data[2] - heading_ang)/(PI/2))-turn_off;
+                    double scale2 = exp(abs(imu_data[2] + heading_ang)/(PI/2))-turn_off;
+                    double scale = std::min(scale1, scale2);
+                    std::cout << "number : " << scale << std::endl;
+                    
+                    left_pos -= POSITION_STEP_ROTATION*scale;
+                    right_pos += POSITION_STEP_ROTATION*scale;
                 }
             } else if (imu_data[2] < heading_ang + ROT_TOL && imu_data[2] > heading_ang - ROT_TOL) {
                 //std::cout << "left" << std::endl;
@@ -282,8 +276,13 @@ int main(int argc, char **argv) {
                 ++step;
                 left_state = false;
             } else {
-                left_pos -= POSITION_STEP_ROTATION;
-                right_pos += POSITION_STEP_ROTATION;
+                double turn_off = 0.5;
+                double scale = exp(2*abs(imu_data[2] - heading_ang)/(PI/2))-turn_off;
+                std::cout << "number : " << scale << std::endl;
+                
+                left_pos -= POSITION_STEP_ROTATION*scale;
+                right_pos += POSITION_STEP_ROTATION*scale;
+                
             }
             left_vel = SPEED;
             right_vel = SPEED;
@@ -294,7 +293,7 @@ int main(int argc, char **argv) {
                 right_state = true;
             }
             // gyroscopic angle the robot intends to turn to
-            std::cout << "RHEADING: " << heading_ang << std::endl;
+            //std::cout << "RHEADING: " << heading_ang << std::endl;
             // check if heading_ang is PI or -PI
             // on the edge cases of gyroscope
             if (heading_almost_equal_edge(heading_ang, PI)) {
@@ -308,8 +307,14 @@ int main(int argc, char **argv) {
                     ++step;
                     right_state = false;
                 } else {
-                    left_pos += POSITION_STEP_ROTATION;
-                    right_pos -= POSITION_STEP_ROTATION;
+                    double turn_off = 0.5;
+                    double scale1 = exp(abs(imu_data[2] - heading_ang)/(PI/2))-turn_off;
+                    double scale2 = exp(abs(imu_data[2] + heading_ang)/(PI/2))-turn_off;
+                    double scale = std::min(scale1, scale2);
+                    std::cout << "number : " << scale << std::endl;
+                    
+                    left_pos += POSITION_STEP_ROTATION*scale;
+                    right_pos -= POSITION_STEP_ROTATION*scale;
                 }
             } else if (imu_data[2] < heading_ang + ROT_TOL && imu_data[2] > heading_ang - ROT_TOL) {
                 //std::cout << "right" << std::endl;
@@ -318,8 +323,12 @@ int main(int argc, char **argv) {
                 ++step;
                 right_state = false;
             } else {
-                left_pos += POSITION_STEP_ROTATION;
-                right_pos -= POSITION_STEP_ROTATION;
+                double turn_off = 0.5;
+                double scale = exp(2*abs(imu_data[2] - heading_ang)/(PI/2))-turn_off;
+                std::cout << "number : " << scale << std::endl;
+                
+                left_pos += POSITION_STEP_ROTATION*scale;
+                right_pos -= POSITION_STEP_ROTATION*scale;
             }
             left_vel = SPEED;
             right_vel = SPEED;
@@ -434,4 +443,29 @@ char update_heading(char heading, char turn) {
         heading = 'W';
     } 
     return heading;
+}
+
+void forward(Robot* robot, double &right_pos, double &left_pos, double &right_vel, 
+             double &left_vel, Motor* right_motor, Motor* left_motor, 
+             bool &forward_state, double forward_time, double &prev_time, 
+             std::vector<int> (&rc_pos), std::string::iterator (&path_it), 
+             int &step, char &heading) {
+    // go forward
+    if (forward_state == false) {
+        prev_time = robot->getTime();
+        //std::cout << "old : " << old << std::endl;
+        forward_state = true;
+    }
+    if (robot->getTime() < prev_time + forward_time) {
+        left_pos += POSITION_STEP_LINEAR;
+        right_pos += POSITION_STEP_LINEAR;
+    } else {
+        rc_pos = update_row_col(rc_pos, heading);
+        ++path_it;
+        ++step;
+        forward_state = false;
+    }
+    // move faster on a forward to save time
+    left_vel = FORWARD_SPEED;
+    right_vel = FORWARD_SPEED;
 }

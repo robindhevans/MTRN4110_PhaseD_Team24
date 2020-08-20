@@ -1343,7 +1343,7 @@ void draw_potentials(walldata walls, Display *display, vector<vector<int>> poten
 
 //clear display
 display->setAlpha(0);
-display->fillRectangle(0,0,500,300);
+display->fillRectangle(0,0,1000,1000);
 //set up outisde borders
 display->setAlpha(1);
  
@@ -1370,17 +1370,16 @@ display->setAlpha(1);
     }
   } 
   display->setColor(0x0baaff);
+  display->setFont("Arial", 30, 1);
   if (found_state == true) {
-    int rowpos = DISP_COR_OFFSET + (get_rc(potentials[0][0], 'r') * DISP_CELL_STEP);
-    int colpos = DISP_COR_OFFSET + (get_rc(potentials[0][0], 'c') * DISP_CELL_STEP)+15;
+    int rowpos = DISP_COR_OFFSET + (get_rc(potentials[0].back(), 'r') * DISP_CELL_STEP);
+    int colpos = DISP_COR_OFFSET + (get_rc(potentials[0].back(), 'c') * DISP_CELL_STEP)+8;
     display->drawText("O", colpos, rowpos+8);
   } else {
     for (auto& e : potentials) {
-      for (auto& f : e) {
-        int rowpos = DISP_COR_OFFSET + (get_rc(f, 'r') * DISP_CELL_STEP);
-        int colpos = DISP_COR_OFFSET + (get_rc(f, 'c') * DISP_CELL_STEP)+15;
+        int rowpos = DISP_COR_OFFSET + (get_rc(e.back(), 'r') * DISP_CELL_STEP);
+        int colpos = DISP_COR_OFFSET + (get_rc(e.back(), 'c') * DISP_CELL_STEP)+8;
         display->drawText("O", colpos, rowpos+8);
-        }
       }
     }
   

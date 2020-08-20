@@ -27,7 +27,7 @@
 //tile width divided by radius
 #define TOLERANCE 0.005
 #define get_path_instruct_FILE_NAME "../../PathPlan.txt"
-#define MAP_FILE_NAME "../../Map.txt"
+#define MAP_FILE_NAME "../../Map2.txt"
 #define DISP_COR_OFFSET 25
 #define DISP_CELL_STEP 50
 #define DISP_WIDTH 450
@@ -39,6 +39,8 @@
 #define KNOWN_HEADING South
 #define HORIZONTAL_WALL "---"
 #define VERTICAL_WALL "|"
+#define EXPLORE_START_ROW 2
+#define EXPLORE_START_COL 5
 // All the webots classes are defined in the "webots" namespace
 using namespace webots;
 using namespace std;
@@ -138,8 +140,8 @@ int main(int argc, char **argv) {
   bool force_exit_exploration = false;
 
   //initialise robot position
-  walls.row = 0;
-  walls.col = 0;
+  walls.row = EXPLORE_START_ROW;
+  walls.col = EXPLORE_START_COL;
   walls.heading_ = South;
   
   //initialise robot

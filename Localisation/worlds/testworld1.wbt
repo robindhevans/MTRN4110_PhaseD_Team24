@@ -540,8 +540,8 @@ DEF TheA-maze-ingRacers E-puck {
       ]
     }
     Display {
-      width 500
-      height 300
+      width 1280
+      height 720
     }
     DistanceSensor {
       translation 0 -0.02 -0.01

@@ -1370,6 +1370,7 @@ display->setAlpha(1);
     }
   } 
   display->setColor(0x0baaff);
+  display->setFont("Arial", 30 , 1);
   if (found_state == true) {
     int rowpos = DISP_COR_OFFSET + (get_rc(potentials[0][0], 'r') * DISP_CELL_STEP);
     int colpos = DISP_COR_OFFSET + (get_rc(potentials[0][0], 'c') * DISP_CELL_STEP)+15;
@@ -1383,10 +1384,7 @@ display->setAlpha(1);
         }
       }
     }
-  
-
-  
-  
+    
     display->setColor(0x1f9e1f);
     display->drawRectangle(DISP_COR_OFFSET,DISP_COR_OFFSET,DISP_WIDTH+2,DISP_HEIGHT+2);
   }

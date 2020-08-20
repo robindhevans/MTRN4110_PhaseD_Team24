@@ -87,18 +87,6 @@ int MTRN4110_PhaseA(char pathPlan[]) {
   sensors.leftMotor->setVelocity(0.8 * MAX_SPEED);
   sensors.rightMotor->setVelocity(0.8 * MAX_SPEED);
 
-  /*
-  // read file in path 
-  ifstream pathFile;
-  pathFile.open(PATH_PLAN_FILE_NAME, ios::in);
-  if (!pathFile.is_open()) {
-    cout << "Failed to open PathPlan" << endl;
-    cout << "Exiting Controller..." << endl;
-    exit(EXIT_FAILURE);
-  }
-  pathFile >> pathPlan;
-  cout << pathPlan << endl;*/
-  cout << "Done - Path plan read!" << endl;
   cout << "Start - Execute path plan!" << endl;
   
   

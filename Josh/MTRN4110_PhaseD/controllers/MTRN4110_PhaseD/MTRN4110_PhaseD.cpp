@@ -16,11 +16,10 @@
 using namespace std;
 
 int MTRN4110_PhaseA(char pathPlan[]);
-int MTRN4110_PhaseB(char maptext[][MAP_TEXT_COLS], char pathPlan[]);
+int MTRN4110_PhaseB(char pathPlan[]);
 
 int main(int argc, char **argv) {
 char pathPlan[50];
-char maptext[MAP_TEXT_ROWS][MAP_TEXT_COLS];
 
   cout << "Beginning Phase C" << endl; 
   STARTUPINFO si;
@@ -59,7 +58,7 @@ char maptext[MAP_TEXT_ROWS][MAP_TEXT_COLS];
   
   
   cout << "Beginning Phase B" << endl;
-  while(MTRN4110_PhaseB(maptext, pathPlan)) {}
+  while(MTRN4110_PhaseB(pathPlan)) {}
   cout << "Phase B Complete" << endl;
   cout << "Beginning Phase A" << endl;
   while(MTRN4110_PhaseA(pathPlan)) {}

@@ -61,7 +61,7 @@ int getheading(char robheading);
 char convertheading(int int_heading);
 int writeinstr(stepdata& step, int direction);
 
-int MTRN4110_PhaseB(char maptext[][MAP_TEXT_COLS], char pathPlan[]) {
+int MTRN4110_PhaseB(char pathPlan[]) {
   mapdata map;
   stepdata step;
   finalpath shortestpath;
